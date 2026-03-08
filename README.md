@@ -10,6 +10,8 @@ A lightweight, header-only command-line argument parser for C++
 - **Flag support** - Boolean flags that don't require values (e.g., `--help`, `-v`)
 - **Value validation** - Define allowed values for specific arguments
 - **Joined options** - Support attached values like `-lcuda` or `--library=cuda`
+- **Positional inputs** - Non-option arguments are preserved as positional inputs
+- **Unknown option handling** - Configurable handling of unknown options with retrieval API
 - **X-Macros** - Clean, maintainable option definitions using X-Macro pattern
 - **Unified syntax** - Define options and flags together with a single macro
 
@@ -35,6 +37,7 @@ int main(int argc, char* argv[]) {
   ArgumentParser parser(MyAppTable);
   
   if (!parser.Parse(argc, argv)) {
+    std::cerr << "Failed to parse arguments" << std::endl;
     parser.PrintHelp();
     return 1;
   }
@@ -60,6 +63,12 @@ int main(int argc, char* argv[]) {
     std::cout << "Library: " << parser.GetArgValue(OPT_library) << std::endl;
   }
   
+  // Access positional inputs
+  const auto& inputs = parser.GetInputs();
+  for (const auto& input : inputs) {
+    std::cout << "Input file: " << input << std::endl;
+  }
+  
   return 0;
 }
 ```
@@ -81,9 +90,13 @@ int main(int argc, char* argv[]) {
 ./my_app -v
 ./my_app --help
 
+# Positional inputs (non-option arguments)
+./my_app -o out.txt input1.txt input2.txt
+./my_app file1.txt -v file2.txt file3.txt
+
 # Mixed usage
-./my_app -v --host localhost -Lcuda --port 8080
-./my_app --verbose -H 127.0.0.1 -Lpthread -p 9090
+./my_app -v --host localhost -Lcuda --port 8080 input.txt
+./my_app --verbose -H 127.0.0.1 -Lpthread -p 9090 *.txt
 
 # Underscore/dash flexibility (both work!)
 ./my_app --log-lvl debug    # with dash
@@ -147,6 +160,9 @@ This generates:
 | `HasArg(id)` | Check if an argument was provided (works for both options and flags) |
 | `GetArgValue(id)` | Get the value of an option (empty string for flags or missing args) |
 | `PrintHelp()` | Display usage information with all options and flags |
+| `GetInputs()` | Get positional inputs (non-option arguments) as `const std::vector<std::string>&` |
+| `SetAllowUnknown(bool)` | Configure whether unknown options should cause parse failure |
+| `GetUnknown()` | Get list of unknown options as `const std::vector<std::string>&` |
 
 ### Access Patterns
 
@@ -160,6 +176,23 @@ if (parser.HasArg(OPT_port)) {
 // Check a flag
 if (parser.HasArg(OPT_verbose)) {
     // verbose mode is enabled
+}
+
+// Get positional inputs
+const auto& inputs = parser.GetInputs();
+for (const auto& input : inputs) {
+    std::cout << "Input: " << input << std::endl;
+}
+
+// Handle unknown options
+parser.SetAllowUnknown(true);  // Don't fail on unknown options
+if (!parser.Parse(argc, argv)) {
+    // handle parse error...
+}
+
+const auto& unknown = parser.GetUnknown();
+for (const auto& opt : unknown) {
+    std::cout << "Unknown option: " << opt << std::endl;
 }
 
 // Show help
@@ -254,6 +287,68 @@ DEFINE_ARGS(Compiler, CompilerTable, COMPILER_ARGS)
 Usage:
 ```bash
 g++ -Lcuda -I/usr/local/include -DNDEBUG -o app.out main.cpp
+```
+
+### Positional Inputs
+
+Non-option arguments are automatically preserved as positional inputs:
+
+```cpp
+#define MY_ARGS(F) \
+  F(output, o, "Output file", OPTION, {}) \
+  F(verbose, v, "Verbose mode", FLAG, {})
+
+DEFINE_ARGS(App, AppTable, MY_ARGS)
+
+int main(int argc, char* argv[]) {
+  ArgumentParser parser(AppTable);
+  parser.Parse(argc, argv);
+  
+  // Get positional inputs (files, etc.)
+  const auto& inputs = parser.GetInputs();
+  // inputs contains all non-option arguments
+}
+```
+
+```bash
+# Everything that's not an option becomes an input
+./app -o out.txt file1.txt file2.txt file3.txt
+# inputs = ["file1.txt", "file2.txt", "file3.txt"]
+
+./app file1.txt -v file2.txt -o out.txt file3.txt
+# inputs = ["file1.txt", "file2.txt", "file3.txt"]
+```
+
+### Unknown Option Handling
+
+Control how unknown options are handled:
+
+```cpp
+ArgumentParser parser(Table);
+
+// By default, unknown options cause parse failure
+parser.Parse(argc, argv);  // Returns false on unknown option
+
+// Allow unknown options without error
+parser.SetAllowUnknown(true);
+if (parser.Parse(argc, argv)) {
+    // Parse succeeded even with unknown options
+    
+    // Retrieve unknown options if needed
+    const auto& unknown = parser.GetUnknown();
+    for (const auto& opt : unknown) {
+        std::cout << "Unknown: " << opt << std::endl;
+    }
+}
+```
+
+**Important**: Unknown options must start with `-` or `--`. Arguments without these prefixes are treated as positional inputs, not unknown options.
+
+```cpp
+// --fake-opt is unknown, "input" is treated as positional input
+./app --fake-opt input.txt
+# GetUnknown() returns ["--fake-opt"]
+# GetInputs() returns ["input.txt"]
 ```
 
 ### Help Output
