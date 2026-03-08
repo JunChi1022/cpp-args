@@ -9,6 +9,7 @@ A lightweight, header-only command-line argument parser for C++
 - **Short & long options** - Support for both `-p` and `--port` style arguments
 - **Flag support** - Boolean flags that don't require values (e.g., `--help`, `-v`)
 - **Value validation** - Define allowed values for specific arguments
+- **Joined options** - Support attached values like `-lcuda` or `--library=cuda`
 - **X-Macros** - Clean, maintainable option definitions using X-Macro pattern
 - **Unified syntax** - Define options and flags together with a single macro
 
@@ -24,6 +25,7 @@ A lightweight, header-only command-line argument parser for C++
 #define MY_APP_ARGS(F)                                                         \
   F(host, H, "Server hostname", OPTION, {})                                    \
   F(port, p, "Server port", OPTION, {"8080", "9090"})                          \
+  F(library, L, "Link library", JOINED, {"cuda", "stdc++"})                    \
   F(verbose, v, "Enable verbose mode", FLAG, {})                               \
   F(help, h, "Print help message", FLAG, {})
 
@@ -54,17 +56,25 @@ int main(int argc, char* argv[]) {
     std::cout << "Port: " << parser.GetArgValue(OPT_port) << std::endl;
   }
   
+  if (parser.HasArg(OPT_library)) {
+    std::cout << "Library: " << parser.GetArgValue(OPT_library) << std::endl;
+  }
+  
   return 0;
 }
 ```
 
 ### Usage Examples
 
-```bash
-# Options with values
+```
+# Regular options with values (space-separated)
 ./my_app --host localhost --port 8080
 ./my_app -H localhost -p 9090
-./my_app --host=localhost --port=8080
+
+# Joined options (value attached directly)
+./my_app -Lcuda                    # Short option with joined value
+./my_app --library=cuda            # Long option with = separator
+./my_app -Lstdc++ -I/usr/include   # Multiple joined options
 
 # Flags (no value needed)
 ./my_app --verbose
@@ -72,8 +82,8 @@ int main(int argc, char* argv[]) {
 ./my_app --help
 
 # Mixed usage
-./my_app -v --host localhost --port 8080
-./my_app --verbose -H 127.0.0.1 -p 8080
+./my_app -v --host localhost -Lcuda --port 8080
+./my_app --verbose -H 127.0.0.1 -Lpthread -p 9090
 
 # Underscore/dash flexibility (both work!)
 ./my_app --log-lvl debug    # with dash
@@ -84,7 +94,7 @@ int main(int argc, char* argv[]) {
 
 ### Defining Arguments
 
-**Options** (require values):
+**Options** (require separate value):
 ```cpp
 F(name, short_name, "help text", OPTION, {allowed_values})
 ```
@@ -94,19 +104,29 @@ F(name, short_name, "help text", OPTION, {allowed_values})
 F(name, short_name, "help text", FLAG, {})
 ```
 
+**Joined Options** (value attached directly):
+```cpp
+F(name, short_name, "help text", JOINED, {allowed_values})
+```
+
+Supports:
+- Short format: `-Xvalue` (e.g., `-lcuda`, `-I/usr/include`)
+- Long format: `--name=value` (e.g., `--library=cuda`)
+
 Parameters:
 - `name`: Option identifier (use underscores, e.g., `log_lvl`)
 - `short_name`: Single character short form (e.g., `p` for `-p`)
 - `help_text`: Description shown in help message
-- `OPTION` or `FLAG`: Kind identifier
-- `allowed_values`: For OPTION only - list of valid values like `{"json", "xml"}`, use `{}` for any value
+- `OPTION`, `FLAG`, or `JOINED`: Kind identifier
+- `allowed_values`: For OPTION/JOINED - list of valid values like `{"json", "xml"}`, use `{}` for any value
 
 ### Macro Structure
 
-```cpp
+```
 #define MY_ARGS(F)                                               \
   F(option1, o, "Option 1", OPTION, {})                          \
   F(option2, O, "Option 2", OPTION, {"a", "b", "c"})             \
+  F(joined1, j, "Joined opt", JOINED, {"x", "y"})                \
   F(flag1, f, "Flag 1", FLAG, {})                                \
   F(flag2, F, "Flag 2", FLAG, {})
 
@@ -114,7 +134,7 @@ DEFINE_ARGS(EnumName, TableName, MY_ARGS)
 ```
 
 This generates:
-- Enum: `OPT_option1`, `OPT_option2`, `OPT_flag1`, `OPT_flag2`
+- Enum: `OPT_option1`, `OPT_option2`, `OPT_joined1`, `OPT_flag1`, `OPT_flag2`
 - OptionTable: `TableName` for the parser
 
 ## API Reference
@@ -197,7 +217,7 @@ cpp-args/
 3. **Type-safe** - Use generated enum IDs instead of error-prone string literals
 4. **User-friendly CLI** - Accepts both `--log_lvl` and `--log-lvl`
 5. **Clean code** - X-Macros eliminate repetition, single definition location
-6. **Flexible** - Mix options and flags naturally in one macro
+6. **Flexible** - Mix options, flags, and joined options naturally in one macro
 
 ## Advanced Features
 
@@ -208,12 +228,33 @@ Restrict option values to a predefined set:
 ```cpp
 #define ARGS(F) \
   F(format, f, "Output format", OPTION, {"json", "xml", "text"}) \
-  F(level, l, "Log level", OPTION, {"debug", "info", "warn", "error"})
+  F(level, l, "Log level", OPTION, {"debug", "info", "warn", "error"}) \
+  F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})
 
 DEFINE_ARGS(App, AppTable, ARGS)
 ```
 
 Invalid values will cause parsing to fail with an error message.
+
+### Joined Options (Compiler-style Flags)
+
+Perfect for compiler-like interfaces where values are attached directly:
+
+```cpp
+#define COMPILER_ARGS(F) \
+  F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"}) \
+  F(include, I, "Include path", JOINED, {}) \
+  F(define, D, "Define macro", JOINED, {}) \
+  F(output, o, "Output file", OPTION, {}) \
+  F(verbose, v, "Verbose mode", FLAG, {})
+
+DEFINE_ARGS(Compiler, CompilerTable, COMPILER_ARGS)
+```
+
+Usage:
+```bash
+g++ -Lcuda -I/usr/local/include -DNDEBUG -o app.out main.cpp
+```
 
 ### Help Output
 
@@ -223,8 +264,9 @@ The library automatically generates formatted help messages:
 Usage Options:
   --host, -H               Server hostname
   --port, -p               Server port [Values: 8080|9090]
-  --verbose, -v            Enable verbose mode [flag]
-  --help, -h               Print help message [flag]
+  --library, -L            Link library [Values: cuda|stdc++]
+  --verbose, -v            Enable verbose mode
+  --help, -h               Print help message
 ```
 
 ---

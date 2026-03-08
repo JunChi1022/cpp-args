@@ -17,9 +17,12 @@ struct Option {
   std::string shortName; // e.g. "l"
   std::string help;
   std::set<std::string> allowed;
-
-  // Option kind: OPTION requires a value, FLAG does not
-  enum Kind { OPTION_KIND = 0, FLAG_KIND = 1 };
+  
+  // Option kind: 
+  // - OPTION requires a value (separate argument)
+  // - FLAG does not require a value
+  // - JOINED allows value to be joined with option name
+  enum Kind { OPTION_KIND = 0, FLAG_KIND = 1, JOINED_KIND = 2 };
   Kind kind;
 
   // Helper: Normalize name by converting _ to -
@@ -39,11 +42,53 @@ public:
 
   /**
    * @brief Fuzzy parsing: treats "_" and "-" as identical.
+   * Supports joined options where value is attached to the option name
    */
   bool Parse(int argc, char *argv[]) {
     for (int i = 1; i < argc; ++i) {
       std::string arg = argv[i];
+      
+      // Try to find exact match first
       const Option *opt = FindOption(arg);
+      
+      // If not found and it's a short option, try to extract joined value
+      if (!opt && arg.size() > 2 && arg[0] == '-' && arg[1] != '-') {
+        std::string shortName = arg.substr(1, 1);
+        std::string value = arg.substr(2);
+        opt = FindOptionByShortName(shortName);
+        
+        if (opt && opt->kind == Option::JOINED_KIND) {
+          // Validate value if allowed values are specified
+          if (!opt->allowed.empty() &&
+              opt->allowed.find(value) == opt->allowed.end()) {
+            std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                      << std::endl;
+            return false;
+          }
+          parsedArgs[opt->id] = value;
+          continue;
+        }
+      }
+      
+      // If not found and it's a long option with '=', try to extract joined value
+      if (!opt && arg.find('=') != std::string::npos && arg.find("--") == 0) {
+        size_t eqPos = arg.find('=');
+        std::string longName = arg.substr(2, eqPos - 2);
+        std::string value = arg.substr(eqPos + 1);
+        opt = FindOptionByLongName(longName);
+        
+        if (opt && opt->kind == Option::JOINED_KIND) {
+          // Validate value if allowed values are specified
+          if (!opt->allowed.empty() &&
+              opt->allowed.find(value) == opt->allowed.end()) {
+            std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                      << std::endl;
+            return false;
+          }
+          parsedArgs[opt->id] = value;
+          continue;
+        }
+      }
 
       if (!opt) {
         std::cerr << "Error: Unknown argument '" << arg << "'" << std::endl;
@@ -97,9 +142,6 @@ public:
         }
         std::cout << "]";
       }
-      if (opt.kind == Option::FLAG_KIND) {
-        std::cout << " [flag]";
-      }
       std::cout << std::endl;
     }
   }
@@ -126,6 +168,23 @@ private:
     }
     return nullptr;
   }
+  
+  const Option *FindOptionByShortName(const std::string &shortName) const {
+    for (const auto &opt : optionTable) {
+      if (opt.shortName == shortName)
+        return &opt;
+    }
+    return nullptr;
+  }
+  
+  const Option *FindOptionByLongName(const std::string &longName) const {
+    std::string normName = Option::Normalize(longName);
+    for (const auto &opt : optionTable) {
+      if (Option::Normalize(opt.longName) == normName)
+        return &opt;
+    }
+    return nullptr;
+  }
 
   OptionTable optionTable;
   std::map<int, std::string> parsedArgs;
@@ -133,19 +192,20 @@ private:
 
 /**
  * @brief X-Macros for unified argument definition.
- *
+ * 
  * Usage format:
  * - For options: F(name, short_name, help_text, OPTION, {allowed_values})
- * - For flags: F(name, short_name, help_text, FLAG, {}) - empty allowed values
- * ignored
+ * - For flags: F(name, short_name, help_text, FLAG, {}) - empty allowed values ignored
+ * - For joined options: F(name, short_name, help_text, JOINED, {allowed_values})
+ *   Joined options allow value to be attached directly (e.g., -lcuda, --library=cuda)
  */
 
 // Kind identifiers for macro usage
 #define OPTION Option::OPTION_KIND
 #define FLAG Option::FLAG_KIND
+#define JOINED Option::JOINED_KIND
 
-// GENERATE_ENUM takes kind and optional allowed values (ignored for enum
-// generation)
+// GENERATE_ENUM takes kind and optional allowed values (ignored for enum generation)
 #define GENERATE_ENUM(name, sh, help, kind, ...) OPT_##name,
 
 // GENERATE_TABLE uses kind and allowed values
@@ -154,12 +214,7 @@ private:
 #define MAKE_ALLOWED(...) __VA_ARGS__
 
 #define GENERATE_TABLE(name, sh, help, kind, ...)                              \
-  Option{(int)OPT_##name,                                                      \
-         #name,                                                                \
-         #sh,                                                                  \
-         help,                                                                 \
-         MAKE_ALLOWED(__VA_ARGS__),                                            \
-         static_cast<Option::Kind>(kind)},
+  Option{(int)OPT_##name, #name, #sh, help, MAKE_ALLOWED(__VA_ARGS__), static_cast<Option::Kind>(kind)},
 
 /**
  * @brief Unified macro for defining all arguments in a single macro
