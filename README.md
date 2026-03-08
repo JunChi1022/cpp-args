@@ -93,17 +93,7 @@ OPT_output
 
 ## Example Usage
 
-See [`example.cpp`](example.cpp) for a complete working example.
-
-```bash
-# Compile the example
-g++ -std=c++11 example.cpp -o example
-
-# Run with different options
-./example --port 8080
-./example --log-lvl debug
-./example -p 9000 -l info
-./example --help
+See unit tests in test for example usage
 ```
 
 ## Building & Testing
