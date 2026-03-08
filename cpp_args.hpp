@@ -17,6 +17,7 @@ struct Option {
   std::string shortName; // e.g. "l"
   std::string help;
   std::set<std::string> allowed;
+  bool isFlag; // true if this is a flag (no value required)
 
   // Helper: Normalize name by converting _ to -
   static std::string Normalize(std::string str) {
@@ -46,6 +47,13 @@ public:
         return false;
       }
 
+      // If it's a flag, just mark it as present
+      if (opt->isFlag) {
+        parsedArgs[opt->id] = "";
+        continue;
+      }
+
+      // For non-flag options, require a value
       if (i + 1 < argc) {
         std::string value = argv[++i];
         if (!opt->allowed.empty() &&
@@ -86,6 +94,9 @@ public:
         }
         std::cout << "]";
       }
+      if (opt.isFlag) {
+        std::cout << " [flag]";
+      }
       std::cout << std::endl;
     }
   }
@@ -120,14 +131,30 @@ private:
 /**
  * @brief Minimalist X-Macros.
  * name: The unique identifier. Must use _ in macro (e.g. log_lvl).
+ * isFlag: true if this option is a flag (no value required).
  */
 #define GENERATE_ENUM(name, sh, help, ...) OPT_##name,
 
 #define GENERATE_TABLE(name, sh, help, ...)                                    \
-  Option{(int)OPT_##name, #name, #sh, help, __VA_ARGS__},
+  Option{(int)OPT_##name, #name, #sh, help, __VA_ARGS__, false},
+
+#define GENERATE_FLAG(name, sh, help)                                          \
+  Option{(int)OPT_##name, #name, #sh, help, {}, true},
 
 #define DEFINE_ARGUMENTS(EnumName, TableName, ListMacro)                       \
   enum EnumName { ListMacro(GENERATE_ENUM) EnumName##_COUNT };                 \
   static const OptionTable TableName = {ListMacro(GENERATE_TABLE)};
+
+#define DEFINE_FLAGS(EnumName, TableName, FlagsMacro)                          \
+  enum EnumName { FlagsMacro(GENERATE_ENUM) EnumName##_COUNT };                \
+  static const OptionTable TableName = {FlagsMacro(GENERATE_FLAG)};
+
+#define DEFINE_ARGUMENTS_WITH_FLAGS(EnumName, TableName, OptionsMacro,         \
+                                    FlagsMacro)                                \
+  enum EnumName {                                                              \
+    OptionsMacro(GENERATE_ENUM) FlagsMacro(GENERATE_ENUM) EnumName##_COUNT     \
+  };                                                                           \
+  static const OptionTable TableName = {OptionsMacro(GENERATE_TABLE)           \
+                                            FlagsMacro(GENERATE_FLAG)};
 
 #endif
