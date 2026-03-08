@@ -4,11 +4,11 @@
 #include <iostream>
 
 #define TEST_OPTIONS(V)                                                        \
-  V(port, p, "Server port number", {})                                         \
-  V(log_lvl, l, "Logging verbosity", {"debug", "info"})                        \
-  V(output, o, "Output file", {})
+  V(port, p, "Server port number", OPTION, {})                                 \
+  V(log_lvl, l, "Logging verbosity", OPTION, {"debug", "info"})                \
+  V(output, o, "Output file", OPTION, {})
 
-DEFINE_ARGS(TestOption, TestTable, TEST_OPTIONS, EMPTY_MACRO)
+DEFINE_ARGS(TestOption, TestTable, TEST_OPTIONS)
 
 void TestUnderscoreToDashConversion() {
   std::cout << "Test: Underscore to Dash Conversion... ";

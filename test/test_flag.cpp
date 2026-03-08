@@ -5,21 +5,19 @@
 
 // Test with flags only - using unified DEFINE_ARGS macro
 #define TEST_FLAGS_ONLY(F)                                                     \
-  F(help, h, "print help info")                                                \
-  F(verbose, v, "enable verbose mode")
+  F(help, h, "print help info", FLAG, {})                                      \
+  F(verbose, v, "enable verbose mode", FLAG, {})
 
-DEFINE_ARGS(FlagOption1, FlagTable1, EMPTY_MACRO, TEST_FLAGS_ONLY)
+DEFINE_ARGS(FlagOption1, FlagTable1, TEST_FLAGS_ONLY)
 
 // Test with mixed options and flags - using unified DEFINE_ARGS macro
-#define TEST_MIXED_OPTIONS2(F)                                                 \
-  F(port2, p, "Server port number", {})                                        \
-  F(log_lvl2, l, "Logging verbosity", {"debug", "info"})
+#define TEST_MIXED(F)                                                          \
+  F(port2, p, "Server port number", OPTION, {})                                \
+  F(log_lvl2, l, "Logging verbosity", OPTION, {"debug", "info"})               \
+  F(help2, h, "print help info", FLAG, {})                                     \
+  F(verbose2, v, "enable verbose mode", FLAG, {})
 
-#define TEST_MIXED_FLAGS2(F)                                                   \
-  F(help2, h, "print help info")                                               \
-  F(verbose2, v, "enable verbose mode")
-
-DEFINE_ARGS(MixedOption2, MixedTable2, TEST_MIXED_OPTIONS2, TEST_MIXED_FLAGS2)
+DEFINE_ARGS(MixedOption2, MixedTable2, TEST_MIXED)
 
 void TestFlagOnly() {
   std::cout << "Test: Flag Only... ";

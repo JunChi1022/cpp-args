@@ -10,270 +10,141 @@ A lightweight, header-only command-line argument parser for C++
 - **Flag support** - Boolean flags that don't require values (e.g., `--help`, `-v`)
 - **Value validation** - Define allowed values for specific arguments
 - **X-Macros** - Clean, maintainable option definitions using X-Macro pattern
-- **Easy to use** - Simple API with minimal boilerplate
+- **Unified syntax** - Define options and flags together with a single macro
 
 ## Quick Start
 
-### 1. Define Your Options
-
-**With regular options (require values):**
+### Complete Example
 
 ```cpp
 #include "cpp_args.hpp"
 #include <iostream>
 
-#define MY_APP_OPTIONS(V) \
-    V(port,     p, "Server port number",   {}) \
-    V(log_lvl,  l, "Logging verbosity",   {"debug", "info"}) \
-    V(output,   o, "Output file",          {})
+// Define all arguments in one place - mix options and flags freely
+#define MY_APP_ARGS(F)                                                         \
+  F(host, H, "Server hostname", OPTION, {})                                    \
+  F(port, p, "Server port", OPTION, {"8080", "9090"})                          \
+  F(verbose, v, "Enable verbose mode", FLAG, {})                               \
+  F(help, h, "Print help message", FLAG, {})
 
-DEFINE_ARGS(AppOption, AppTable, MY_APP_OPTIONS, EMPTY_MACRO)
-```
+DEFINE_ARGS(MyApp, MyAppTable, MY_APP_ARGS)
 
-**With flags (no value required):**
-
-```cpp
-// Define flags only
-#define MY_APP_FLAGS(F) \
-    F(help,   h, "Print help information") \
-    F(verbose, v, "Enable verbose mode")
-
-DEFINE_ARGS(AppFlag, AppFlagTable, EMPTY_MACRO, MY_APP_FLAGS)
-```
-
-**Mixed options and flags:**
-
-```cpp
-#define MY_OPTIONS(V) \
-    V(port,     p, "Server port number",   {}) \
-    V(log_lvl,  l, "Logging verbosity",   {"debug", "info"})
-
-#define MY_FLAGS(V) \
-    F(help,   h, "Print help information") \
-    F(verbose, v, "Enable verbose mode")
-
-DEFINE_ARGS(MyOption, MyTable, MY_OPTIONS, MY_FLAGS)
-```
-
-### 2. Parse Arguments
-
-```cpp
 int main(int argc, char* argv[]) {
-    ArgumentParser parser(AppTable);
-
-    if (!parser.Parse(argc, argv)) {
-        parser.PrintHelp();
-        return 1;
-    }
-
-    // Access parsed values for regular options
-    if (parser.HasArg(OPT_port)) {
-        std::cout << "Port: " << parser.GetArgValue(OPT_port) << std::endl;
-    }
-
-    if (parser.HasArg(OPT_log_lvl)) {
-        std::cout << "Log Level: " << parser.GetArgValue(OPT_log_lvl) << std::endl;
-    }
-
-    // Check flags (they don't have values, just presence)
-    if (parser.HasArg(OPT_help)) {
-        parser.PrintHelp();
-        return 0;
-    }
-
-    if (parser.HasArg(OPT_verbose)) {
-        std::cout << "Verbose mode enabled" << std::endl;
-    }
-
+  ArgumentParser parser(MyAppTable);
+  
+  if (!parser.Parse(argc, argv)) {
+    parser.PrintHelp();
+    return 1;
+  }
+  
+  if (parser.HasArg(OPT_help)) {
+    parser.PrintHelp();
     return 0;
+  }
+  
+  if (parser.HasArg(OPT_verbose)) {
+    std::cout << "Verbose mode enabled" << std::endl;
+  }
+  
+  if (parser.HasArg(OPT_host)) {
+    std::cout << "Host: " << parser.GetArgValue(OPT_host) << std::endl;
+  }
+  
+  if (parser.HasArg(OPT_port)) {
+    std::cout << "Port: " << parser.GetArgValue(OPT_port) << std::endl;
+  }
+  
+  return 0;
 }
 ```
 
-### 3. Run Your Application
+### Usage Examples
 
-```
-# Regular options with values
-./my_app --port 8080 --log-lvl debug
-./my_app -p 8080 -l info
-./my_app --port 8080 --log_lvl debug  # Underscore works too!
+```bash
+# Options with values
+./my_app --host localhost --port 8080
+./my_app -H localhost -p 9090
+./my_app --host=localhost --port=8080
 
 # Flags (no value needed)
-./my_app --help
+./my_app --verbose
 ./my_app -v
-./my_app --verbose --port 8080
+./my_app --help
 
 # Mixed usage
-./my_app --help
-./my_app -v --port 8080 --log-lvl info
+./my_app -v --host localhost --port 8080
+./my_app --verbose -H 127.0.0.1 -p 8080
+
+# Underscore/dash flexibility (both work!)
+./my_app --log-lvl debug    # with dash
+./my_app --log_lvl debug    # with underscore
 ```
+
+## Syntax Guide
+
+### Defining Arguments
+
+**Options** (require values):
+```cpp
+F(name, short_name, "help text", OPTION, {allowed_values})
+```
+
+**Flags** (no value required):
+```cpp
+F(name, short_name, "help text", FLAG, {})
+```
+
+Parameters:
+- `name`: Option identifier (use underscores, e.g., `log_lvl`)
+- `short_name`: Single character short form (e.g., `p` for `-p`)
+- `help_text`: Description shown in help message
+- `OPTION` or `FLAG`: Kind identifier
+- `allowed_values`: For OPTION only - list of valid values like `{"json", "xml"}`, use `{}` for any value
+
+### Macro Structure
+
+```cpp
+#define MY_ARGS(F)                                               \
+  F(option1, o, "Option 1", OPTION, {})                          \
+  F(option2, O, "Option 2", OPTION, {"a", "b", "c"})             \
+  F(flag1, f, "Flag 1", FLAG, {})                                \
+  F(flag2, F, "Flag 2", FLAG, {})
+
+DEFINE_ARGS(EnumName, TableName, MY_ARGS)
+```
+
+This generates:
+- Enum: `OPT_option1`, `OPT_option2`, `OPT_flag1`, `OPT_flag2`
+- OptionTable: `TableName` for the parser
 
 ## API Reference
-
-### Macro Definition
-
-**For options (require values):**
-
-```cpp
-#define OPTIONS_MACRO(V) \
-    V(name, short_name, help_text, {allowed_values})
-```
-
-- `name`: Option identifier (use underscores, e.g., `log_lvl`)
-- `short_name`: Single character short form (e.g., `l` for `-l`)
-- `help_text`: Description shown in help message
-- `allowed_values`: Optional list of valid values (empty `{}` means any value)
-
-**For flags (no value required):**
-
-```cpp
-#define FLAGS_MACRO(F) \
-    F(name, short_name, help_text)
-```
-
-- `name`: Flag identifier (use underscores, e.g., `verbose`)
-- `short_name`: Single character short form (e.g., `v` for `-v`)
-- `help_text`: Description shown in help message
-
-### DEFINE_ARGS Macro
-
-**`DEFINE_ARGS(EnumName, TableName, OptionsMacro, FlagsMacro)`**
-
-The unified macro that handles all cases. Use `EMPTY_MACRO` for parameters you don't need.
-
-- When you only have options: `DEFINE_ARGS(Name, Table, OPTIONS_MACRO, EMPTY_MACRO)`
-- When you only have flags: `DEFINE_ARGS(Name, Table, EMPTY_MACRO, FLAGS_MACRO)`
-- When you have both: `DEFINE_ARGS(Name, Table, OPTIONS_MACRO, FLAGS_MACRO)`
 
 ### ArgumentParser Methods
 
 | Method | Description |
 |--------|-------------|
 | `Parse(argc, argv)` | Parse command-line arguments, returns `true` on success |
-| `HasArg(id)` | Check if an argument was provided |
-| `GetArgValue(id)` | Get the value of an argument |
-| `PrintHelp()` | Display usage information |
+| `HasArg(id)` | Check if an argument was provided (works for both options and flags) |
+| `GetArgValue(id)` | Get the value of an option (empty string for flags or missing args) |
+| `PrintHelp()` | Display usage information with all options and flags |
 
-### Generated Enum
-
-The macro generates an enum with format `OPT_<name>` for each option:
-```cpp
-OPT_port
-OPT_log_lvl
-OPT_output
-```
-
-## Example Usage
-
-### Regular Options Example
+### Access Patterns
 
 ```cpp
-#include "cpp_args.hpp"
-#include <iostream>
-
-#define OPTIONS(V) \
-    V(input,  i, "Input file",      {}) \
-    V(output, o, "Output file",     {}) \
-    V(format, f, "Output format",   {"json", "xml", "text"})
-
-DEFINE_ARGS(Options, OptionTable, OPTIONS, EMPTY_MACRO)
-
-int main(int argc, char* argv[]) {
-    ArgumentParser parser(OptionTable);
-    
-    if (!parser.Parse(argc, argv)) {
-        parser.PrintHelp();
-        return 1;
-    }
-    
-    std::cout << "Input: " << parser.GetArgValue(OPT_input) << std::endl;
-    std::cout << "Output: " << parser.GetArgValue(OPT_output) << std::endl;
-    std::cout << "Format: " << parser.GetArgValue(OPT_format) << std::endl;
-    
-    return 0;
+// Check if an option/flag was provided
+if (parser.HasArg(OPT_port)) {
+    std::string value = parser.GetArgValue(OPT_port);
+    // use value...
 }
-```
 
-### Flags Example
-
-```cpp
-#include "cpp_args.hpp"
-#include <iostream>
-
-#define FLAGS(F) \
-    F(help,    h, "Print this help message") \
-    F(verbose, v, "Enable verbose output") \
-    F(debug,   d, "Enable debug mode")
-
-DEFINE_ARGS(Flags, FlagTable, EMPTY_MACRO, FLAGS)
-
-int main(int argc, char* argv[]) {
-    ArgumentParser parser(FlagTable);
-    
-    if (!parser.Parse(argc, argv)) {
-        parser.PrintHelp();
-        return 1;
-    }
-    
-    if (parser.HasArg(OPT_help)) {
-        parser.PrintHelp();
-        return 0;
-    }
-    
-    if (parser.HasArg(OPT_verbose)) {
-        std::cout << "Verbose mode ON" << std::endl;
-    }
-    
-    if (parser.HasArg(OPT_debug)) {
-        std::cout << "Debug mode ON" << std::endl;
-    }
-    
-    return 0;
+// Check a flag
+if (parser.HasArg(OPT_verbose)) {
+    // verbose mode is enabled
 }
+
+// Show help
+parser.PrintHelp();
 ```
-
-### Mixed Options and Flags Example
-
-```cpp
-#include "cpp_args.hpp"
-#include <iostream>
-
-#define OPTIONS(V) \
-    V(config, c, "Configuration file", {}) \
-    V(port,   p, "Server port",        {"8080", "443"})
-
-#define FLAGS(F) \
-    F(help,    h, "Show help") \
-    F(daemon,  d, "Run as daemon") \
-    F(quiet,   q, "Suppress output")
-
-DEFINE_ARGS(App, AppTable, OPTIONS, FLAGS)
-
-int main(int argc, char* argv[]) {
-    ArgumentParser parser(AppTable);
-    
-    if (!parser.Parse(argc, argv)) {
-        parser.PrintHelp();
-        return 1;
-    }
-    
-    if (parser.HasArg(OPT_help)) {
-        parser.PrintHelp();
-        return 0;
-    }
-    
-    if (parser.HasArg(OPT_daemon)) {
-        std::cout << "Running as daemon..." << std::endl;
-    }
-    
-    if (parser.HasArg(OPT_config)) {
-        std::cout << "Config: " << parser.GetArgValue(OPT_config) << std::endl;
-    }
-    
-    return 0;
-}
-```
-
-See unit tests in `test/` for more example usage.
 
 ## Building & Testing
 
@@ -286,8 +157,7 @@ See unit tests in `test/` for more example usage.
 ### Build Tests
 
 ```bash
-mkdir build
-cd build
+mkdir build && cd build
 cmake ..
 make
 ```
@@ -305,31 +175,58 @@ ctest -R BasicParsing
 ctest -R "ShortName|MultipleArgs"
 ```
 
-### Verbose Test Output
-
-```bash
-ctest --verbose
-```
-
 ## Project Structure
 
 ```
 cpp-args/
-├── cpp_args.hpp          # Header-only library
+├── cpp_args.hpp          # Header-only library (all you need!)
 ├── example.cpp           # Usage example
 ├── CMakeLists.txt        # Build configuration
 ├── README.md            # This file
 └── test/                # Unit tests
+    ├── test_basic.cpp
+    ├── test_flag.cpp
+    ├── test_allowed_values.cpp
+    └── ...
 ```
 
 ## Key Benefits
 
-1. **No dependencies** - Pure C++ standard library
-2. **Compile-time safety** - Options defined at compile time
-3. **Type-safe access** - Use generated enum IDs instead of string literals
-4. **User-friendly** - Accepts both `--log_lvl` and `--log-lvl`
-5. **Clean code** - X-Macros eliminate repetition
+1. **Zero dependencies** - Pure C++ standard library
+2. **Compile-time safety** - Options defined at compile time, enum-based access
+3. **Type-safe** - Use generated enum IDs instead of error-prone string literals
+4. **User-friendly CLI** - Accepts both `--log_lvl` and `--log-lvl`
+5. **Clean code** - X-Macros eliminate repetition, single definition location
+6. **Flexible** - Mix options and flags naturally in one macro
 
-## License
+## Advanced Features
 
-This project is open source. Feel free to use it in your projects!
+### Value Validation
+
+Restrict option values to a predefined set:
+
+```cpp
+#define ARGS(F) \
+  F(format, f, "Output format", OPTION, {"json", "xml", "text"}) \
+  F(level, l, "Log level", OPTION, {"debug", "info", "warn", "error"})
+
+DEFINE_ARGS(App, AppTable, ARGS)
+```
+
+Invalid values will cause parsing to fail with an error message.
+
+### Help Output
+
+The library automatically generates formatted help messages:
+
+```
+Usage Options:
+  --host, -H               Server hostname
+  --port, -p               Server port [Values: 8080|9090]
+  --verbose, -v            Enable verbose mode [flag]
+  --help, -h               Print help message [flag]
+```
+
+---
+
+See unit tests in `test/` directory for more comprehensive examples and edge cases.

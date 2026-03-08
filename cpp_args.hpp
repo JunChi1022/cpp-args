@@ -17,7 +17,10 @@ struct Option {
   std::string shortName; // e.g. "l"
   std::string help;
   std::set<std::string> allowed;
-  bool isFlag; // true if this is a flag (no value required)
+
+  // Option kind: OPTION requires a value, FLAG does not
+  enum Kind { OPTION_KIND = 0, FLAG_KIND = 1 };
+  Kind kind;
 
   // Helper: Normalize name by converting _ to -
   static std::string Normalize(std::string str) {
@@ -48,7 +51,7 @@ public:
       }
 
       // If it's a flag, just mark it as present
-      if (opt->isFlag) {
+      if (opt->kind == Option::FLAG_KIND) {
         parsedArgs[opt->id] = "";
         continue;
       }
@@ -94,7 +97,7 @@ public:
         }
         std::cout << "]";
       }
-      if (opt.isFlag) {
+      if (opt.kind == Option::FLAG_KIND) {
         std::cout << " [flag]";
       }
       std::cout << std::endl;
@@ -129,49 +132,72 @@ private:
 };
 
 /**
- * @brief Minimalist X-Macros.
- * name: The unique identifier. Must use _ in macro (e.g. log_lvl).
- * For options: V(name, short_name, help_text, {allowed_values})
- * For flags: V(name, short_name, help_text) - no allowed_values parameter
+ * @brief X-Macros for unified argument definition.
+ *
+ * Usage format:
+ * - For options: F(name, short_name, help_text, OPTION, {allowed_values})
+ * - For flags: F(name, short_name, help_text, FLAG, {}) - empty allowed values
+ * ignored
  */
-#define GENERATE_ENUM(name, sh, help, ...) OPT_##name,
 
-#define GENERATE_TABLE(name, sh, help, ...)                                    \
-  Option{(int)OPT_##name, #name, #sh, help, __VA_ARGS__, false},
+// Kind identifiers for macro usage
+#define OPTION Option::OPTION_KIND
+#define FLAG Option::FLAG_KIND
 
-#define GENERATE_FLAG(name, sh, help)                                          \
-  Option{(int)OPT_##name, #name, #sh, help, {}, true},
+// GENERATE_ENUM takes kind and optional allowed values (ignored for enum
+// generation)
+#define GENERATE_ENUM(name, sh, help, kind, ...) OPT_##name,
 
-// Empty macros for optional use
-#define EMPTY_MACRO(M)
+// GENERATE_TABLE uses kind and allowed values
+// We need to handle the case where allowed is empty or has values
+// Using a wrapper to handle the initializer list properly
+#define MAKE_ALLOWED(...) __VA_ARGS__
+
+#define GENERATE_TABLE(name, sh, help, kind, ...)                              \
+  Option{(int)OPT_##name,                                                      \
+         #name,                                                                \
+         #sh,                                                                  \
+         help,                                                                 \
+         MAKE_ALLOWED(__VA_ARGS__),                                            \
+         static_cast<Option::Kind>(kind)},
 
 /**
- * @brief Unified macro for defining arguments with optional flags support
+ * @brief Unified macro for defining all arguments in a single macro
  * @param EnumName Name of the enum to generate
  * @param TableName Name of the OptionTable to generate
- * @param OptionsMacro Macro that defines options (with values), can be empty
- * @param FlagsMacro Macro that defines flags (no values), can be empty
- * 
+ * @param ArgsMacro Macro that defines all arguments (both options and flags)
+ *
+ * Note: Both OPTION and FLAG types require the allowed_values parameter.
+ * For FLAGs, this should be an empty set {} as they don't accept values.
+ *
  * Usage examples:
- * 
- * 1. Options only:
- *    #define OPTIONS(V) V(port, p, "Port", {})
- *    DEFINE_ARGS(App, AppTable, OPTIONS, EMPTY_MACRO)
- * 
- * 2. Flags only:
- *    #define FLAGS(F) F(help, h, "Help")
- *    DEFINE_ARGS(App, AppTable, EMPTY_MACRO, FLAGS)
- * 
- * 3. Both options and flags:
- *    #define OPTIONS(V) V(port, p, "Port", {})
- *    #define FLAGS(F) F(help, h, "Help")
- *    DEFINE_ARGS(App, AppTable, OPTIONS, FLAGS)
+ *
+ * 1. Mixed options and flags:
+ *    #define ARGS(F)                                                          \
+ *       F(port, p, "Server port", OPTION, {})                                 \
+ *       F(verbose, v, "Enable verbose", FLAG, {})                             \
+ *       F(log_lvl, l, "Log level", OPTION, {"debug", "info"})                 \
+ *       F(help, h, "Print help", FLAG, {})                                    \
+ *    DEFINE_ARGS(App, AppTable, ARGS)
+ *
+ * 2. Options only:
+ *    #define ARGS(F)                                                          \
+ *       F(port, p, "Port", OPTION, {})                                        \
+ *       F(host, H, "Host", OPTION, {})                                        \
+ *    DEFINE_ARGS(App, AppTable, ARGS)
+ *
+ * 3. Flags only:
+ *    #define ARGS(F)                                                          \
+ *       F(help, h, "Help", FLAG, {})                                          \
+ *       F(verbose, v, "Verbose", FLAG, {})                                   \
+ *    DEFINE_ARGS(App, AppTable, ARGS)
  */
-#define DEFINE_ARGS(EnumName, TableName, OptionsMacro, FlagsMacro)             \
-  enum EnumName {                                                              \
-    OptionsMacro(GENERATE_ENUM) FlagsMacro(GENERATE_ENUM) EnumName##_COUNT     \
-  };                                                                           \
-  static const OptionTable TableName = {OptionsMacro(GENERATE_TABLE)           \
-                                            FlagsMacro(GENERATE_FLAG)};
+#define DEFINE_ARGS(EnumName, TableName, ArgsMacro)                            \
+  enum EnumName { ArgsMacro(GENERATE_ENUM) EnumName##_COUNT };                 \
+  const Option InitList_##TableName[] = {ArgsMacro(GENERATE_TABLE)};           \
+  static const OptionTable TableName(InitList_##TableName,                     \
+                                     InitList_##TableName +                    \
+                                         sizeof(InitList_##TableName) /        \
+                                             sizeof(InitList_##TableName[0]));
 
 #endif
