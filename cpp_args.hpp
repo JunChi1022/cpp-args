@@ -131,7 +131,8 @@ private:
 /**
  * @brief Minimalist X-Macros.
  * name: The unique identifier. Must use _ in macro (e.g. log_lvl).
- * isFlag: true if this option is a flag (no value required).
+ * For options: V(name, short_name, help_text, {allowed_values})
+ * For flags: V(name, short_name, help_text) - no allowed_values parameter
  */
 #define GENERATE_ENUM(name, sh, help, ...) OPT_##name,
 
@@ -141,16 +142,32 @@ private:
 #define GENERATE_FLAG(name, sh, help)                                          \
   Option{(int)OPT_##name, #name, #sh, help, {}, true},
 
-#define DEFINE_ARGUMENTS(EnumName, TableName, ListMacro)                       \
-  enum EnumName { ListMacro(GENERATE_ENUM) EnumName##_COUNT };                 \
-  static const OptionTable TableName = {ListMacro(GENERATE_TABLE)};
+// Empty macros for optional use
+#define EMPTY_MACRO(M)
 
-#define DEFINE_FLAGS(EnumName, TableName, FlagsMacro)                          \
-  enum EnumName { FlagsMacro(GENERATE_ENUM) EnumName##_COUNT };                \
-  static const OptionTable TableName = {FlagsMacro(GENERATE_FLAG)};
-
-#define DEFINE_ARGUMENTS_WITH_FLAGS(EnumName, TableName, OptionsMacro,         \
-                                    FlagsMacro)                                \
+/**
+ * @brief Unified macro for defining arguments with optional flags support
+ * @param EnumName Name of the enum to generate
+ * @param TableName Name of the OptionTable to generate
+ * @param OptionsMacro Macro that defines options (with values), can be empty
+ * @param FlagsMacro Macro that defines flags (no values), can be empty
+ * 
+ * Usage examples:
+ * 
+ * 1. Options only:
+ *    #define OPTIONS(V) V(port, p, "Port", {})
+ *    DEFINE_ARGS(App, AppTable, OPTIONS, EMPTY_MACRO)
+ * 
+ * 2. Flags only:
+ *    #define FLAGS(F) F(help, h, "Help")
+ *    DEFINE_ARGS(App, AppTable, EMPTY_MACRO, FLAGS)
+ * 
+ * 3. Both options and flags:
+ *    #define OPTIONS(V) V(port, p, "Port", {})
+ *    #define FLAGS(F) F(help, h, "Help")
+ *    DEFINE_ARGS(App, AppTable, OPTIONS, FLAGS)
+ */
+#define DEFINE_ARGS(EnumName, TableName, OptionsMacro, FlagsMacro)             \
   enum EnumName {                                                              \
     OptionsMacro(GENERATE_ENUM) FlagsMacro(GENERATE_ENUM) EnumName##_COUNT     \
   };                                                                           \

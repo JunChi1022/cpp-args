@@ -8,7 +8,7 @@
   V(log_lvl, l, "Logging verbosity", {"debug", "info"})                        \
   V(output, o, "Output file", {})
 
-DEFINE_ARGUMENTS(TestOption, TestTable, TEST_OPTIONS)
+DEFINE_ARGS(TestOption, TestTable, TEST_OPTIONS, EMPTY_MACRO)
 
 void TestMultipleArguments() {
   std::cout << "Test: Multiple Arguments... ";

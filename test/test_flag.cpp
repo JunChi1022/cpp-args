@@ -3,24 +3,23 @@
 #include <cassert>
 #include <iostream>
 
-// Test with flags only
+// Test with flags only - using unified DEFINE_ARGS macro
 #define TEST_FLAGS_ONLY(F)                                                     \
   F(help, h, "print help info")                                                \
   F(verbose, v, "enable verbose mode")
 
-DEFINE_FLAGS(FlagOption1, FlagTable1, TEST_FLAGS_ONLY)
+DEFINE_ARGS(FlagOption1, FlagTable1, EMPTY_MACRO, TEST_FLAGS_ONLY)
 
-// Test with mixed options and flags - use unique names to avoid redefinition
+// Test with mixed options and flags - using unified DEFINE_ARGS macro
 #define TEST_MIXED_OPTIONS2(F)                                                 \
-  F(port2, , "Server port number", {})                                         \
+  F(port2, p, "Server port number", {})                                        \
   F(log_lvl2, l, "Logging verbosity", {"debug", "info"})
 
 #define TEST_MIXED_FLAGS2(F)                                                   \
   F(help2, h, "print help info")                                               \
   F(verbose2, v, "enable verbose mode")
 
-DEFINE_ARGUMENTS_WITH_FLAGS(MixedOption2, MixedTable2, TEST_MIXED_OPTIONS2,
-                            TEST_MIXED_FLAGS2)
+DEFINE_ARGS(MixedOption2, MixedTable2, TEST_MIXED_OPTIONS2, TEST_MIXED_FLAGS2)
 
 void TestFlagOnly() {
   std::cout << "Test: Flag Only... ";

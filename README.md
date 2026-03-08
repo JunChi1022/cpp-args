@@ -27,7 +27,7 @@ A lightweight, header-only command-line argument parser for C++
     V(log_lvl,  l, "Logging verbosity",   {"debug", "info"}) \
     V(output,   o, "Output file",          {})
 
-DEFINE_ARGUMENTS(AppOption, AppTable, MY_APP_OPTIONS)
+DEFINE_ARGS(AppOption, AppTable, MY_APP_OPTIONS, EMPTY_MACRO)
 ```
 
 **With flags (no value required):**
@@ -38,7 +38,7 @@ DEFINE_ARGUMENTS(AppOption, AppTable, MY_APP_OPTIONS)
     F(help,   h, "Print help information") \
     F(verbose, v, "Enable verbose mode")
 
-DEFINE_FLAGS(AppFlag, AppFlagTable, MY_APP_FLAGS)
+DEFINE_ARGS(AppFlag, AppFlagTable, EMPTY_MACRO, MY_APP_FLAGS)
 ```
 
 **Mixed options and flags:**
@@ -49,10 +49,10 @@ DEFINE_FLAGS(AppFlag, AppFlagTable, MY_APP_FLAGS)
     V(log_lvl,  l, "Logging verbosity",   {"debug", "info"})
 
 #define MY_FLAGS(V) \
-    V(help,   h, "Print help information") \
-    V(verbose, v, "Enable verbose mode")
+    F(help,   h, "Print help information") \
+    F(verbose, v, "Enable verbose mode")
 
-DEFINE_ARGUMENTS_WITH_FLAGS(MyOption, MyTable, MY_OPTIONS, MY_FLAGS)
+DEFINE_ARGS(MyOption, MyTable, MY_OPTIONS, MY_FLAGS)
 ```
 
 ### 2. Parse Arguments
@@ -134,19 +134,15 @@ int main(int argc, char* argv[]) {
 - `short_name`: Single character short form (e.g., `v` for `-v`)
 - `help_text`: Description shown in help message
 
-### DEFINE_ARGUMENTS Macros
+### DEFINE_ARGS Macro
 
-**`DEFINE_ARGUMENTS(EnumName, TableName, OptionsMacro)`**
-- Defines options that require values
-- Use for regular command-line arguments
+**`DEFINE_ARGS(EnumName, TableName, OptionsMacro, FlagsMacro)`**
 
-**`DEFINE_FLAGS(EnumName, TableName, FlagsMacro)`**
-- Defines flags that don't require values
-- Use for boolean switches like `--help`, `-v`
+The unified macro that handles all cases. Use `EMPTY_MACRO` for parameters you don't need.
 
-**`DEFINE_ARGUMENTS_WITH_FLAGS(EnumName, TableName, OptionsMacro, FlagsMacro)`**
-- Combines both options and flags in a single definition
-- Most flexible option for mixed usage
+- When you only have options: `DEFINE_ARGS(Name, Table, OPTIONS_MACRO, EMPTY_MACRO)`
+- When you only have flags: `DEFINE_ARGS(Name, Table, EMPTY_MACRO, FLAGS_MACRO)`
+- When you have both: `DEFINE_ARGS(Name, Table, OPTIONS_MACRO, FLAGS_MACRO)`
 
 ### ArgumentParser Methods
 
@@ -179,7 +175,7 @@ OPT_output
     V(output, o, "Output file",     {}) \
     V(format, f, "Output format",   {"json", "xml", "text"})
 
-DEFINE_ARGUMENTS(Options, OptionTable, OPTIONS)
+DEFINE_ARGS(Options, OptionTable, OPTIONS, EMPTY_MACRO)
 
 int main(int argc, char* argv[]) {
     ArgumentParser parser(OptionTable);
@@ -208,7 +204,7 @@ int main(int argc, char* argv[]) {
     F(verbose, v, "Enable verbose output") \
     F(debug,   d, "Enable debug mode")
 
-DEFINE_FLAGS(Flags, FlagTable, FLAGS)
+DEFINE_ARGS(Flags, FlagTable, EMPTY_MACRO, FLAGS)
 
 int main(int argc, char* argv[]) {
     ArgumentParser parser(FlagTable);
@@ -250,7 +246,7 @@ int main(int argc, char* argv[]) {
     F(daemon,  d, "Run as daemon") \
     F(quiet,   q, "Suppress output")
 
-DEFINE_ARGUMENTS_WITH_FLAGS(App, AppTable, OPTIONS, FLAGS)
+DEFINE_ARGS(App, AppTable, OPTIONS, FLAGS)
 
 int main(int argc, char* argv[]) {
     ArgumentParser parser(AppTable);
