@@ -1,6 +1,7 @@
 #ifndef ARGUMENT_PARSER_HPP
 #define ARGUMENT_PARSER_HPP
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -8,7 +9,6 @@
 #include <set>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 /**
  * @brief Option metadata.
@@ -110,7 +110,7 @@ public:
         if (!allowUnknown) {
           std::string suggestion = FindSimilarOption(arg);
           if (!suggestion.empty()) {
-            std::cerr << "Error: Unknown argument '" << arg 
+            std::cerr << "Error: Unknown argument '" << arg
                       << "'. Did you mean '" << suggestion << "'?" << std::endl;
           } else {
             std::cerr << "Error: Unknown argument '" << arg << "'" << std::endl;
@@ -171,8 +171,9 @@ public:
 
   /**
    * @brief Find the most similar option name to the given input
-   * @param input The misspelled or unknown option name (e.g. "--verbos" or "-vve")
-   * @return The most similar valid option name with prefix (e.g. "--verbose"), 
+   * @param input The misspelled or unknown option name (e.g. "--verbos" or
+   * "-vve")
+   * @return The most similar valid option name with prefix (e.g. "--verbose"),
    *         or empty string if no similar option found
    */
   std::string FindSimilarOption(const std::string &input) const {
@@ -182,7 +183,7 @@ public:
     // Extract the name part (without prefix and potential value)
     std::string cleanInput = input;
     std::string prefix = "-";
-    
+
     if (input.find("--") == 0) {
       cleanInput = input.substr(2);
       prefix = "--";
@@ -190,22 +191,22 @@ public:
       cleanInput = input.substr(1);
       prefix = "-";
     }
-    
+
     // Remove any joined value (after '=' or attached to short option)
     size_t eqPos = cleanInput.find('=');
     if (eqPos != std::string::npos) {
       cleanInput = cleanInput.substr(0, eqPos);
     }
-    
+
     std::string normInput = Option::Normalize(cleanInput);
-    
+
     std::string bestMatch;
     int minDistance = std::numeric_limits<int>::max();
-    
+
     for (const auto &opt : optionTable) {
       int distance;
       std::string candidate;
-      
+
       // For short options (single character), use short name
       if (cleanInput.length() == 1 && !opt.shortName.empty()) {
         distance = LevenshteinDistance(normInput, opt.shortName);
@@ -215,7 +216,7 @@ public:
         std::string normLongName = Option::Normalize(opt.longName);
         distance = LevenshteinDistance(normInput, normLongName);
         candidate = "--" + normLongName;
-        
+
         // Also consider short name if it exists and might be a better match
         if (!opt.shortName.empty()) {
           int shortDistance = LevenshteinDistance(normInput, opt.shortName);
@@ -225,14 +226,15 @@ public:
           }
         }
       }
-      
+
       if (distance < minDistance) {
         minDistance = distance;
         bestMatch = candidate;
       }
     }
-    
-    // Only return suggestion if it's reasonably close (threshold based on input length)
+
+    // Only return suggestion if it's reasonably close (threshold based on input
+    // length)
     int threshold = std::max(2, (int)normInput.length() / 2);
     return (minDistance <= threshold) ? bestMatch : "";
   }
@@ -306,41 +308,40 @@ private:
    * @brief Calculate Levenshtein distance between two strings
    * @param s1 First string
    * @param s2 Second string
-   * @return The minimum number of single-character edits required to transform s1 into s2
+   * @return The minimum number of single-character edits required to transform
+   * s1 into s2
    */
   int LevenshteinDistance(const std::string &s1, const std::string &s2) const {
     size_t len1 = s1.length();
     size_t len2 = s2.length();
-    
+
     // Create a matrix
     std::vector<std::vector<int>> matrix(len1 + 1, std::vector<int>(len2 + 1));
-    
+
     // Initialize first column and row
     for (size_t i = 0; i <= len1; ++i)
       matrix[i][0] = i;
     for (size_t j = 0; j <= len2; ++j)
       matrix[0][j] = j;
-    
+
     // Compute distances
     for (size_t i = 1; i <= len1; ++i) {
       for (size_t j = 1; j <= len2; ++j) {
         int cost = (s1[i - 1] == s2[j - 1]) ? 0 : 1;
         matrix[i][j] = std::min({
-          matrix[i - 1][j] + 1,      // deletion
-          matrix[i][j - 1] + 1,      // insertion
-          matrix[i - 1][j - 1] + cost // substitution
+            matrix[i - 1][j] + 1,       // deletion
+            matrix[i][j - 1] + 1,       // insertion
+            matrix[i - 1][j - 1] + cost // substitution
         });
-        
+
         // Check for transposition
-        if (i > 1 && j > 1 && 
-            s1[i - 1] == s2[j - 2] && 
+        if (i > 1 && j > 1 && s1[i - 1] == s2[j - 2] &&
             s1[i - 2] == s2[j - 1]) {
-          matrix[i][j] = std::min(matrix[i][j],
-            matrix[i - 2][j - 2] + cost);
+          matrix[i][j] = std::min(matrix[i][j], matrix[i - 2][j - 2] + cost);
         }
       }
     }
-    
+
     return matrix[len1][len2];
   }
 
@@ -396,7 +397,6 @@ private:
  *
  * Usage examples:
  *
- * 1. Mixed options and flags:
  *    #define ARGS(F)                                                          \
  *       F(port, p, "Server port", OPTION, {})                                 \
  *       F(verbose, v, "Enable verbose", FLAG, {})                             \
@@ -404,17 +404,6 @@ private:
  *       F(help, h, "Print help", FLAG, {})                                    \
  *    DEFINE_ARGS(App, AppTable, ARGS)
  *
- * 2. Options only:
- *    #define ARGS(F)                                                          \
- *       F(port, p, "Port", OPTION, {})                                        \
- *       F(host, H, "Host", OPTION, {})                                        \
- *    DEFINE_ARGS(App, AppTable, ARGS)
- *
- * 3. Flags only:
- *    #define ARGS(F)                                                          \
- *       F(help, h, "Help", FLAG, {})                                          \
- *       F(verbose, v, "Verbose", FLAG, {})                                   \
- *    DEFINE_ARGS(App, AppTable, ARGS)
  */
 #define DEFINE_ARGS(EnumName, TableName, ArgsMacro)                            \
   enum EnumName { ArgsMacro(GENERATE_ENUM) EnumName##_COUNT };                 \
