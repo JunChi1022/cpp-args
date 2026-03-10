@@ -20,6 +20,7 @@ add_executable(test_missing_value test/test_missing_value.cpp)
 add_executable(test_flag test/test_flag.cpp)
 add_executable(test_joined_option test/test_joined_option.cpp)
 add_executable(test_inputs_unknown test/test_inputs_unknown.cpp)
+add_executable(test_similar_option test/test_similar_option.cpp)
 
 # Register each test with CTest
 add_test(NAME BasicParsing COMMAND test_basic)
@@ -33,6 +34,7 @@ add_test(NAME MissingValue COMMAND test_missing_value)
 add_test(NAME FlagSupport COMMAND test_flag)
 add_test(NAME JoinedOption COMMAND test_joined_option)
 add_test(NAME InputsAndUnknown COMMAND test_inputs_unknown)
+add_test(NAME SimilarOption COMMAND test_similar_option)
 
 # Set test properties
 set_tests_properties(
@@ -47,6 +49,7 @@ set_tests_properties(
     FlagSupport
     JoinedOption
     InputsAndUnknown
+    SimilarOption
     PROPERTIES
     TIMEOUT 30
     LABELS "unit"
