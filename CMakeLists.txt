@@ -8,52 +8,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable testing
 enable_testing()
 
-# Add individual test executables
-add_executable(test_basic test/test_basic.cpp)
-add_executable(test_underscore_dash test/test_underscore_dash.cpp)
-add_executable(test_underscore_input test/test_underscore_input.cpp)
-add_executable(test_short_name test/test_short_name.cpp)
-add_executable(test_allowed_values test/test_allowed_values.cpp)
-add_executable(test_multiple_args test/test_multiple_args.cpp)
-add_executable(test_unknown_arg test/test_unknown_arg.cpp)
-add_executable(test_missing_value test/test_missing_value.cpp)
-add_executable(test_flag test/test_flag.cpp)
-add_executable(test_joined_option test/test_joined_option.cpp)
-add_executable(test_inputs_unknown test/test_inputs_unknown.cpp)
-add_executable(test_similar_option test/test_similar_option.cpp)
-add_executable(test_option_group test/test_option_group.cpp)
+# Helper function to add a test with all required configuration
+function(add_cpp_test TEST_NAME TEST_FILE)
+    add_executable(${TEST_NAME} ${TEST_FILE})
+    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+    set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT 30 LABELS "unit")
+endfunction()
 
-# Register each test with CTest
-add_test(NAME BasicParsing COMMAND test_basic)
-add_test(NAME UnderscoreToDashConversion COMMAND test_underscore_dash)
-add_test(NAME UnderscoreInput COMMAND test_underscore_input)
-add_test(NAME ShortName COMMAND test_short_name)
-add_test(NAME AllowedValues COMMAND test_allowed_values)
-add_test(NAME MultipleArguments COMMAND test_multiple_args)
-add_test(NAME UnknownArgument COMMAND test_unknown_arg)
-add_test(NAME MissingValue COMMAND test_missing_value)
-add_test(NAME FlagSupport COMMAND test_flag)
-add_test(NAME JoinedOption COMMAND test_joined_option)
-add_test(NAME InputsAndUnknown COMMAND test_inputs_unknown)
-add_test(NAME SimilarOption COMMAND test_similar_option)
-add_test(NAME OptionGroup COMMAND test_option_group)
-
-# Set test properties
-set_tests_properties(
-    BasicParsing
-    UnderscoreToDashConversion
-    UnderscoreInput
-    ShortName
-    AllowedValues
-    MultipleArguments
-    UnknownArgument
-    MissingValue
-    FlagSupport
-    JoinedOption
-    InputsAndUnknown
-    SimilarOption
-    OptionGroup
-    PROPERTIES
-    TIMEOUT 30
-    LABELS "unit"
-)
+# Add all test executables
+add_cpp_test(test_basic test/test_basic.cpp)
+add_cpp_test(test_underscore_dash test/test_underscore_dash.cpp)
+add_cpp_test(test_underscore_input test/test_underscore_input.cpp)
+add_cpp_test(test_short_name test/test_short_name.cpp)
+add_cpp_test(test_allowed_values test/test_allowed_values.cpp)
+add_cpp_test(test_multiple_args test/test_multiple_args.cpp)
+add_cpp_test(test_unknown_arg test/test_unknown_arg.cpp)
+add_cpp_test(test_missing_value test/test_missing_value.cpp)
+add_cpp_test(test_flag test/test_flag.cpp)
+add_cpp_test(test_joined_option test/test_joined_option.cpp)
+add_cpp_test(test_inputs_unknown test/test_inputs_unknown.cpp)
+add_cpp_test(test_similar_option test/test_similar_option.cpp)
+add_cpp_test(test_option_group test/test_option_group.cpp)
+add_cpp_test(test_multiple_values test/test_multiple_values.cpp)

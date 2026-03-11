@@ -236,7 +236,7 @@ General Options:
 
 ### Macro Structure for Groups
 
-```cpp
+``cpp
 #define MY_GROUPS(F)                                               \
   F(GroupEnumName, "Display Name")                                 \
   F(AnotherGroup, "Another Display Name")
@@ -262,7 +262,8 @@ This generates:
 |--------|-------------|
 | `Parse(argc, argv)` | Parse command-line arguments, returns `true` on success |
 | `HasArg(id)` | Check if an argument was provided (works for both options and flags) |
-| `GetArgValue(id)` | Get the value of an option (empty string for flags or missing args) |
+| `GetArgValue(id)` | Get the value of an option. **If option specified multiple times, returns last value** |
+| `GetAllArgValues(id)` | Get **all values** of an option as `const std::vector<std::string>&`. Returns empty vector if not provided |
 | `PrintHelp()` | Display usage information with all options and flags |
 | `GetInputs()` | Get positional inputs (non-option arguments) as `const std::vector<std::string>&` |
 | `SetAllowUnknown(bool)` | Configure whether unknown options should cause parse failure |
@@ -273,9 +274,21 @@ This generates:
 ```cpp
 // Check if an option/flag was provided
 if (parser.HasArg(OPT_port)) {
+    // Get last value (backward compatible)
     std::string value = parser.GetArgValue(OPT_port);
     // use value...
 }
+
+// Get all values if option specified multiple times
+const auto& allValues = parser.GetAllArgValues(OPT_config);
+for (const auto& val : allValues) {
+    std::cout << "Config: " << val << std::endl;
+}
+
+// Example: Multiple occurrences of same option
+// Command: ./my_app -c config1.txt -c config2.txt -c config3.txt
+parser.GetArgValue(OPT_config);        // Returns "config3.txt" (last value)
+parser.GetAllArgValues(OPT_config);    // Returns {"config1.txt", "config2.txt", "config3.txt"}
 
 // Check a flag
 if (parser.HasArg(OPT_verbose)) {

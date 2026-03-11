@@ -96,7 +96,7 @@ public:
                       << std::endl;
             return false;
           }
-          parsedArgs[opt->id] = value;
+          parsedArgs[opt->id].push_back(value);
           continue;
         }
       }
@@ -117,7 +117,7 @@ public:
                       << std::endl;
             return false;
           }
-          parsedArgs[opt->id] = value;
+          parsedArgs[opt->id].push_back(value);
           continue;
         }
       }
@@ -140,7 +140,7 @@ public:
 
       // If it's a flag, just mark it as present
       if (opt->kind == Option::FLAG_KIND) {
-        parsedArgs[opt->id] = "";
+        parsedArgs[opt->id].push_back("");
         continue;
       }
 
@@ -153,7 +153,7 @@ public:
                     << std::endl;
           return false;
         }
-        parsedArgs[opt->id] = value;
+        parsedArgs[opt->id].push_back(value);
       } else {
         std::cerr << "Error: Missing value for " << arg << std::endl;
         return false;
@@ -164,9 +164,28 @@ public:
 
   bool HasArg(int id) const { return parsedArgs.find(id) != parsedArgs.end(); }
 
+  /**
+   * @brief Get the value of an option (returns last value if specified multiple times)
+   * @param id The option enum ID (e.g., OPT_port)
+   * @return The option value, or empty string if not provided
+   */
   std::string GetArgValue(int id) const {
     auto it = parsedArgs.find(id);
-    return (it != parsedArgs.end()) ? it->second : "";
+    if (it != parsedArgs.end() && !it->second.empty()) {
+      return it->second.back(); // Return last value for backward compatibility
+    }
+    return "";
+  }
+
+  /**
+   * @brief Get all values of an option (if specified multiple times)
+   * @param id The option enum ID (e.g., OPT_port)
+   * @return Vector of all values, or empty vector if not provided
+   */
+  const std::vector<std::string>& GetAllArgValues(int id) const {
+    static const std::vector<std::string> emptyVec;
+    auto it = parsedArgs.find(id);
+    return (it != parsedArgs.end()) ? it->second : emptyVec;
   }
 
   /**
@@ -436,7 +455,7 @@ private:
 
   OptionTable optionTable;
   OptionGroupTable optionGroups;
-  std::map<int, std::string> parsedArgs;
+  std::map<int, std::vector<std::string>> parsedArgs; // Support multiple values per option
   std::vector<std::string> inputs; // Positional inputs (non-option arguments)
   std::vector<std::string> unknownArgs; // Unknown options
   bool allowUnknown; // Whether to allow unknown options without error
