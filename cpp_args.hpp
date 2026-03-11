@@ -556,10 +556,10 @@ private:
          help,                                                                 \
          __VA_ARGS__,                                                          \
          static_cast<Option::Kind>(kind),                                      \
-         group##_ID},
+         GRP_##group},
 
-#define GENERATE_GROUP_ENUM(name, display) name##_ID,
-#define GENERATE_GROUP_INFO(name, display) {name##_ID, display},
+#define GENERATE_GROUP_ENUM(name, display) GRP_##name,
+#define GENERATE_GROUP_INFO(name, display) {GRP_##name, display},
 
 #define DEFINE_ARGS_WITH_GROUP(ArgEnumName, GroupEnumName, TableName,          \
                                ArgsMacro, GroupsMacro)                         \

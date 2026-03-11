@@ -70,12 +70,12 @@ TEST(TestOptionGroup_GetGroupId) {
   ArgumentParser parser(AppTable, AppTableGroups);
   
   // Test group ID lookup
-  assert(parser.GetGroupId(OPT_host) == Frontend_ID);
-  assert(parser.GetGroupId(OPT_port) == Frontend_ID);
-  assert(parser.GetGroupId(OPT_db) == Backend_ID);
+  assert(parser.GetGroupId(OPT_host) == GRP_Frontend);
+  assert(parser.GetGroupId(OPT_port) == GRP_Frontend);
+  assert(parser.GetGroupId(OPT_db) == GRP_Backend);
   
   std::cout << "GetGroupId returns correct values" << std::endl;
-  
+
   #undef GROUPS
   #undef ARGS
 }
@@ -111,11 +111,11 @@ TEST(TestOptionGroup_MixedGroups) {
   assert(parser.GetArgValue(OPT_port) == "9090");
   
   // Test group assignment
-  assert(parser.GetGroupId(OPT_verbose) == Default_ID); // Default group
-  assert(parser.GetGroupId(OPT_help) == Default_ID);
-  assert(parser.GetGroupId(OPT_host) == Frontend_ID);
-  assert(parser.GetGroupId(OPT_port) == Frontend_ID);
-  
+  assert(parser.GetGroupId(OPT_verbose) == GRP_Default); // Default group
+  assert(parser.GetGroupId(OPT_help) == GRP_Default);
+  assert(parser.GetGroupId(OPT_host) == GRP_Frontend);
+  assert(parser.GetGroupId(OPT_port) == GRP_Frontend);
+
   CleanupArgs(argv, argc);
   std::cout << "Mixed groups work correctly" << std::endl;
   
@@ -257,11 +257,11 @@ TEST(TestOptionGroup_EmptyGroupName) {
   assert(output.find("General:") == std::string::npos);
   
   // Verify group ID is still set correctly (even though it's displayed as ungrouped)
-  assert(parser.GetGroupId(OPT_verbose) == General_ID);
-  assert(parser.GetGroupId(OPT_help) == General_ID);
-  assert(parser.GetGroupId(OPT_host) == Server_ID);
-  assert(parser.GetGroupId(OPT_db) == Database_ID);
-  
+  assert(parser.GetGroupId(OPT_verbose) == GRP_General);
+  assert(parser.GetGroupId(OPT_help) == GRP_General);
+  assert(parser.GetGroupId(OPT_host) == GRP_Server);
+  assert(parser.GetGroupId(OPT_db) == GRP_Database);
+
   std::cout << "Empty group name treated as ungrouped correctly" << std::endl;
   
   #undef GROUPS

@@ -198,9 +198,9 @@ int main(int argc, char* argv[]) {
   }
   
   // Query group ID for an option
-  int groupId = parser.GetGroupId(OPT_host);  // Returns Server_ID
-  int groupId2 = parser.GetGroupId(OPT_verbose);  // Returns General_ID
-  
+  int groupId = parser.GetGroupId(OPT_host);  // Returns GRP_Server
+  int groupId2 = parser.GetGroupId(OPT_verbose);  // Returns GRP_General
+
   return 0;
 }
 ```
@@ -250,7 +250,7 @@ DEFINE_ARGS_WITH_GROUP(EnumName, GroupEnumName, TableName,
 
 This generates:
 - Option enum: `OPT_option_name`, etc.
-- Group enum: `GroupEnumName_ID`, `AnotherGroup_ID`, etc.
+- Group enum: `GRP_GroupEnumName`, `GRP_AnotherGroup`, etc.
 - OptionTable: `TableName` with groupId for each option
 - GroupTable: `TableNameGroups` with group metadata
 
