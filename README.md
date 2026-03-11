@@ -14,6 +14,7 @@ A lightweight, header-only command-line argument parser for C++
 - **Unknown option handling** - Configurable handling of unknown options with retrieval API
 - **X-Macros** - Clean, maintainable option definitions using X-Macro pattern
 - **Unified syntax** - Define options and flags together with a single macro
+- **Option Groups** - Organize options into logical groups with grouped help display
 
 ## Quick Start
 
@@ -149,6 +150,109 @@ DEFINE_ARGS(EnumName, TableName, MY_ARGS)
 This generates:
 - Enum: `OPT_option1`, `OPT_option2`, `OPT_joined1`, `OPT_flag1`, `OPT_flag2`
 - OptionTable: `TableName` for the parser
+
+## Option Groups (Advanced)
+
+Organize related options into logical groups with automatic grouped help display.
+
+### Defining Option Groups
+
+```cpp
+#include "cpp_args.hpp"
+#include <iostream>
+
+// Define option groups
+#define MY_GROUPS(F)                                                           \
+  F(Server, "Server Options")                                                  \
+  F(Database, "Database Options")                                              \
+  F(General, "General Options")
+
+// Define options with group assignments
+#define MY_ARGS(F)                                                             \
+  F(Server, host, H, "Server hostname", OPTION, {})                            \
+  F(Server, port, p, "Server port", OPTION, {"8080", "9090"})                  \
+  F(Database, db, d, "Database type", OPTION, {"mysql", "postgres"})           \
+  F(Database, connection, c, "Connection string", OPTION, {})                  \
+  F(General, verbose, v, "Verbose mode", FLAG, {})                             \
+  F(General, help, h, "Print help", FLAG, {})
+
+DEFINE_ARGS_WITH_GROUP(MyApp, MyGroups, MyAppTable, MY_ARGS, MY_GROUPS)
+
+int main(int argc, char* argv[]) {
+  // Use constructor with groups support
+  ArgumentParser parser(MyAppTable, MyAppTableGroups);
+  
+  if (!parser.Parse(argc, argv)) {
+    std::cerr << "Failed to parse arguments" << std::endl;
+    return 1;
+  }
+  
+  if (parser.HasArg(OPT_help)) {
+    parser.PrintHelp();  // Help will be displayed grouped by category
+    return 0;
+  }
+  
+  // Access options normally
+  if (parser.HasArg(OPT_host)) {
+    std::cout << "Host: " << parser.GetArgValue(OPT_host) << std::endl;
+  }
+  
+  // Query group ID for an option
+  int groupId = parser.GetGroupId(OPT_host);  // Returns Server_ID
+  int groupId2 = parser.GetGroupId(OPT_verbose);  // Returns General_ID
+  
+  return 0;
+}
+```
+
+### Group Features
+
+1. **Grouped Help Display**: `PrintHelp()` automatically organizes options by group with section headers
+2. **Group ID Lookup**: Use `GetGroupId(optionId)` to query which group an option belongs to
+3. **Flexible Grouping**: Options can be assigned to any group at definition time
+4. **Empty Group Names**: Use empty string `""` as group name for ungrouped options
+
+### Usage Example
+
+```bash
+./my_app --help
+```
+
+Output:
+```
+Usage Options:
+Server Options:
+  --host, -H               Server hostname
+  --port, -p               Server port [Values: 8080|9090]
+
+Database Options:
+  --db, -d                 Database type [Values: mysql|postgres]
+  --connection, -c         Connection string
+
+General Options:
+  --verbose, -v            Verbose mode [flag]
+  --help, -h               Print help [flag]
+```
+
+### Macro Structure for Groups
+
+```cpp
+#define MY_GROUPS(F)                                               \
+  F(GroupEnumName, "Display Name")                                 \
+  F(AnotherGroup, "Another Display Name")
+
+#define MY_ARGS(F)                                                 \
+  F(GroupEnumName, option_name, short_name, "help", kind, {allowed})
+
+DEFINE_ARGS_WITH_GROUP(EnumName, GroupEnumName, TableName, 
+                       ArgsMacro, GroupsMacro)
+```
+
+This generates:
+- Option enum: `OPT_option_name`, etc.
+- Group enum: `GroupEnumName_ID`, `AnotherGroup_ID`, etc.
+- OptionTable: `TableName` with groupId for each option
+- GroupTable: `TableNameGroups` with group metadata
 
 ## API Reference
 

@@ -27,6 +27,9 @@ struct Option {
   enum Kind { OPTION_KIND = 0, FLAG_KIND = 1, JOINED_KIND = 2 };
   Kind kind;
 
+  // Group ID for grouping options in help output
+  int groupId;
+
   // Helper: Normalize name by converting _ to -
   static std::string Normalize(std::string str) {
     for (char &c : str)
@@ -38,10 +41,25 @@ struct Option {
 
 using OptionTable = std::vector<Option>;
 
+struct OptionGroup {
+  int id;
+  std::string name;
+};
+
+using OptionGroupTable = std::vector<OptionGroup>;
+
 class ArgumentParser {
 public:
   explicit ArgumentParser(const OptionTable &table)
       : optionTable(table), allowUnknown(false) {}
+
+  /**
+   * @brief Constructor with option groups support
+   * @param table The option table
+   * @param groups The option group table
+   */
+  ArgumentParser(const OptionTable &table, const OptionGroupTable &groups)
+      : optionTable(table), optionGroups(groups), allowUnknown(false) {}
 
   /**
    * @brief Fuzzy parsing: treats "_" and "-" as identical.
@@ -239,32 +257,102 @@ public:
     return (minDistance <= threshold) ? bestMatch : "";
   }
 
+  /**
+   * @brief Get the group ID for a given option ID
+   * @param optionId The option enum value (e.g., OPT_host)
+   * @return The group ID, or -1 if not found or no groups defined
+   */
+  int GetGroupId(int optionId) const {
+    for (const auto &opt : optionTable) {
+      if (opt.id == optionId) {
+        return opt.groupId;
+      }
+    }
+    return -1;
+  }
+
   void PrintHelp() const {
     std::cout << "Usage Options:" << std::endl;
-    for (const auto &opt : optionTable) {
-      // Display with hyphens for better CLI aesthetics
-      std::string names = "--" + Option::Normalize(opt.longName);
-      if (!opt.shortName.empty())
-        names += ", -" + opt.shortName;
 
-      std::cout << "  " << std::left << std::setw(25) << names << opt.help;
-      if (!opt.allowed.empty()) {
-        std::cout << " [Values: ";
-        for (auto it = opt.allowed.begin(); it != opt.allowed.end(); ++it) {
-          std::cout << (it == opt.allowed.begin() ? "" : "|") << *it;
+    // Check if we have groups defined
+    if (optionGroups.empty()) {
+      // Print all options without grouping
+      for (const auto &opt : optionTable) {
+        printOption(&opt);
+      }
+    } else {
+      // Group options by groupId
+      std::map<int, std::vector<const Option *>> groupedOptions;
+      std::vector<const Option *> ungroupedOptions;
+
+      for (const auto &opt : optionTable) {
+        if (opt.groupId >= 0 &&
+            opt.groupId < static_cast<int>(optionGroups.size())) {
+          groupedOptions[opt.groupId].push_back(&opt);
+        } else {
+          ungroupedOptions.push_back(&opt);
         }
-        std::cout << "]";
       }
-      if (opt.kind == Option::FLAG_KIND) {
-        std::cout << " [flag]";
-      } else if (opt.kind == Option::JOINED_KIND) {
-        std::cout << " [joined]";
+
+      // Print ungrouped options first (if any have empty group name)
+      bool hasUngrouped = false;
+      for (const auto *opt : ungroupedOptions) {
+        if (!hasUngrouped) {
+          hasUngrouped = true;
+        }
+        printOption(opt);
       }
-      std::cout << std::endl;
+
+      // Print grouped options
+      bool firstGroup = true;
+      for (const auto &group : groupedOptions) {
+        int groupId = group.first;
+        const auto &options = group.second;
+
+        // Skip if group ID is out of range
+        if (groupId >= static_cast<int>(optionGroups.size()))
+          continue;
+
+        // Add separator before each group (except possibly the first)
+        if (!firstGroup || hasUngrouped) {
+          std::cout << std::endl;
+        }
+        firstGroup = false;
+
+        // Print group header if we have a group name
+        if (!optionGroups[groupId].name.empty()) {
+          std::cout << optionGroups[groupId].name << ":" << std::endl;
+        }
+
+        for (const auto *opt : options) {
+          printOption(opt);
+        }
+      }
     }
   }
 
 private:
+  void printOption(const Option *opt) const {
+    std::string names = "--" + Option::Normalize(opt->longName);
+    if (!opt->shortName.empty())
+      names += ", -" + opt->shortName;
+
+    std::cout << "  " << std::left << std::setw(25) << names << opt->help;
+    if (!opt->allowed.empty()) {
+      std::cout << " [Values: ";
+      for (auto it = opt->allowed.begin(); it != opt->allowed.end(); ++it) {
+        std::cout << (it == opt->allowed.begin() ? "" : "|") << *it;
+      }
+      std::cout << "]";
+    }
+    if (opt->kind == Option::FLAG_KIND) {
+      std::cout << " [flag]";
+    } else if (opt->kind == Option::JOINED_KIND) {
+      std::cout << " [joined]";
+    }
+    std::cout << std::endl;
+  }
+
   const Option *FindOption(const std::string &input) const {
     if (input.empty())
       return nullptr;
@@ -346,6 +434,7 @@ private:
   }
 
   OptionTable optionTable;
+  OptionGroupTable optionGroups;
   std::map<int, std::string> parsedArgs;
   std::vector<std::string> inputs; // Positional inputs (non-option arguments)
   std::vector<std::string> unknownArgs; // Unknown options
@@ -374,8 +463,8 @@ private:
 #define GENERATE_ENUM(name, sh, help, kind, ...) OPT_##name,
 
 // GENERATE_TABLE uses kind and allowed values
-// We need to handle the case where allowed is empty or has values
-// Using a wrapper to handle the initializer list properly
+// Parameters for DEFINE_ARGS: name, sh, help, kind, allowed_values...
+// This is used by DEFINE_ARGS for non-grouped options (default groupId = -1)
 #define MAKE_ALLOWED(...) __VA_ARGS__
 
 #define GENERATE_TABLE(name, sh, help, kind, ...)                              \
@@ -384,7 +473,8 @@ private:
          #sh,                                                                  \
          help,                                                                 \
          MAKE_ALLOWED(__VA_ARGS__),                                            \
-         static_cast<Option::Kind>(kind)},
+         static_cast<Option::Kind>(kind),                                      \
+         -1},
 
 /**
  * @brief Unified macro for defining all arguments in a single macro
@@ -412,5 +502,64 @@ private:
                                      InitList_##TableName +                    \
                                          sizeof(InitList_##TableName) /        \
                                              sizeof(InitList_##TableName[0]));
+
+/**
+ * @brief Unified macro for defining all arguments with groups
+ * @param ArgEnumName Name of the argument enum to generate (e.g., AppArgs)
+ * @param GroupEnumName Name of the group enum to generate (e.g., AppGroups)
+ * @param TableName Name of the OptionTable to generate
+ * @param ArgsMacro Macro that defines all arguments with format:
+ *                  F(group, name, short, help, kind, allowed)
+ * @param GroupsMacro Macro that defines all groups with format:
+ *                    G(name, display_name)
+ *
+ * Usage example:
+ *    #define GROUPS(F)                                                        \
+ *       F(Frontend, "Frontend Options")                                       \
+ *       F(Backend, "Backend Options")                                         \
+ *       F(Default, "") // Empty name means ungrouped
+ *
+ *    #define ARGS(F)                                                          \
+ *       F(Frontend, host, H, "Host", OPTION, {})                              \
+ *       F(Frontend, port, p, "Port", OPTION, {})                              \
+ *       F(Backend, db, d, "Database", OPTION, {})                             \
+ *       F(Default, verbose, v, "Verbose", FLAG, {})                           \
+ *
+ *    DEFINE_ARGS_WITH_GROUP(App, AppGroup, AppTable, ARGS, GROUPS)
+ */
+#define GENERATE_ENUM_WITH_GROUP(group, name, sh, help, kind, ...) OPT_##name,
+
+#define GENERATE_TABLE_WITH_GROUP(group, name, sh, help, kind, ...)            \
+  Option{(int)OPT_##name,                                                      \
+         #name,                                                                \
+         #sh,                                                                  \
+         help,                                                                 \
+         __VA_ARGS__,                                                          \
+         static_cast<Option::Kind>(kind),                                      \
+         group##_ID},
+
+#define GENERATE_GROUP_ENUM(name, display) name##_ID,
+#define GENERATE_GROUP_INFO(name, display) {name##_ID, display},
+
+#define DEFINE_ARGS_WITH_GROUP(ArgEnumName, GroupEnumName, TableName,          \
+                               ArgsMacro, GroupsMacro)                         \
+  enum GroupEnumName {                                                         \
+    GroupsMacro(GENERATE_GROUP_ENUM) GroupEnumName##_COUNT                     \
+  };                                                                           \
+  enum ArgEnumName {                                                           \
+    ArgsMacro(GENERATE_ENUM_WITH_GROUP) ArgEnumName##_COUNT                    \
+  };                                                                           \
+  const Option InitList_##TableName[] = {                                      \
+      ArgsMacro(GENERATE_TABLE_WITH_GROUP)};                                   \
+  static const OptionTable TableName(InitList_##TableName,                     \
+                                     InitList_##TableName +                    \
+                                         sizeof(InitList_##TableName) /        \
+                                             sizeof(InitList_##TableName[0])); \
+  const OptionGroup GroupList_##TableName[] = {                                \
+      GroupsMacro(GENERATE_GROUP_INFO)};                                       \
+  static const OptionGroupTable TableName##Groups(                             \
+      GroupList_##TableName,                                                   \
+      GroupList_##TableName +                                                  \
+          sizeof(GroupList_##TableName) / sizeof(GroupList_##TableName[0]));
 
 #endif

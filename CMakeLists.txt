@@ -21,6 +21,7 @@ add_executable(test_flag test/test_flag.cpp)
 add_executable(test_joined_option test/test_joined_option.cpp)
 add_executable(test_inputs_unknown test/test_inputs_unknown.cpp)
 add_executable(test_similar_option test/test_similar_option.cpp)
+add_executable(test_option_group test/test_option_group.cpp)
 
 # Register each test with CTest
 add_test(NAME BasicParsing COMMAND test_basic)
@@ -35,6 +36,7 @@ add_test(NAME FlagSupport COMMAND test_flag)
 add_test(NAME JoinedOption COMMAND test_joined_option)
 add_test(NAME InputsAndUnknown COMMAND test_inputs_unknown)
 add_test(NAME SimilarOption COMMAND test_similar_option)
+add_test(NAME OptionGroup COMMAND test_option_group)
 
 # Set test properties
 set_tests_properties(
@@ -50,6 +52,7 @@ set_tests_properties(
     JoinedOption
     InputsAndUnknown
     SimilarOption
+    OptionGroup
     PROPERTIES
     TIMEOUT 30
     LABELS "unit"
