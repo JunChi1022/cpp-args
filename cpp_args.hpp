@@ -286,20 +286,21 @@ public:
       std::vector<const Option *> ungroupedOptions;
 
       for (const auto &opt : optionTable) {
-        if (opt.groupId >= 0 &&
-            opt.groupId < static_cast<int>(optionGroups.size())) {
+        // If the option's group has an empty name, treat it as ungrouped
+        bool isUngrouped = (opt.groupId < 0 || 
+                           opt.groupId >= static_cast<int>(optionGroups.size()) ||
+                           optionGroups[opt.groupId].name.empty());
+        
+        if (!isUngrouped) {
           groupedOptions[opt.groupId].push_back(&opt);
         } else {
           ungroupedOptions.push_back(&opt);
         }
       }
 
-      // Print ungrouped options first (if any have empty group name)
-      bool hasUngrouped = false;
+      // Print ungrouped options first
+      bool hasUngrouped = !ungroupedOptions.empty();
       for (const auto *opt : ungroupedOptions) {
-        if (!hasUngrouped) {
-          hasUngrouped = true;
-        }
         printOption(opt);
       }
 

@@ -203,6 +203,71 @@ TEST(TestOptionGroup_ThreeGroups) {
   #undef ARGS
 }
 
+// Test empty group name (should be treated as ungrouped)
+TEST(TestOptionGroup_EmptyGroupName) {
+  #define GROUPS(F)                                                          \
+   F(Server, "Server Options")                                               \
+   F(Database, "Database Options")                                           \
+   F(General, "")  // Empty name should be treated as ungrouped
+  
+  #define ARGS(F)                                                            \
+   F(Server, host, H, "Server hostname", OPTION, {})                         \
+   F(Server, port, p, "Port", OPTION, {"8080", "9090"})                      \
+   F(Database, db, d, "Database type", OPTION, {"mysql", "postgres"})        \
+   F(Database, connection, c, "Connection string", OPTION, {})               \
+   F(General, verbose, v, "Verbose mode", FLAG, {})                          \
+   F(General, help, h, "Print help", FLAG, {})
+  
+  DEFINE_ARGS_WITH_GROUP(AppArgs, AppGroups, AppTable, ARGS, GROUPS)
+  
+  // Create parser with groups support
+  ArgumentParser parser(AppTable, AppTableGroups);
+  
+  // Capture stdout for help output
+  std::streambuf *sbuf = std::cout.rdbuf();
+  std::ostringstream captured;
+  std::cout.rdbuf(captured.rdbuf());
+  
+  parser.PrintHelp();
+  
+  // Restore stdout
+  std::cout.rdbuf(sbuf);
+  
+  std::string output = captured.str();
+  
+  // Verify that General group options appear first (ungrouped)
+  // They should appear BEFORE Server and Database sections
+  size_t verbosePos = output.find("--verbose");
+  size_t helpPos = output.find("--help");
+  size_t serverPos = output.find("Server Options:");
+  size_t databasePos = output.find("Database Options:");
+  
+  assert(verbosePos != std::string::npos);
+  assert(helpPos != std::string::npos);
+  assert(serverPos != std::string::npos);
+  assert(databasePos != std::string::npos);
+  
+  // Ungrouped options should appear before grouped ones
+  assert(verbosePos < serverPos);
+  assert(helpPos < serverPos);
+  assert(verbosePos < databasePos);
+  assert(helpPos < databasePos);
+  
+  // Verify no "General:" header exists
+  assert(output.find("General:") == std::string::npos);
+  
+  // Verify group ID is still set correctly (even though it's displayed as ungrouped)
+  assert(parser.GetGroupId(OPT_verbose) == General_ID);
+  assert(parser.GetGroupId(OPT_help) == General_ID);
+  assert(parser.GetGroupId(OPT_host) == Server_ID);
+  assert(parser.GetGroupId(OPT_db) == Database_ID);
+  
+  std::cout << "Empty group name treated as ungrouped correctly" << std::endl;
+  
+  #undef GROUPS
+  #undef ARGS
+}
+
 int main() {
   try {
     RUN_TEST(TestOptionGroup_BasicGroup);
@@ -210,11 +275,12 @@ int main() {
     RUN_TEST(TestOptionGroup_MixedGroups);
     RUN_TEST(TestOptionGroup_PrintHelp);
     RUN_TEST(TestOptionGroup_ThreeGroups);
+    RUN_TEST(TestOptionGroup_EmptyGroupName);
     
-  std::cout << "\nAll tests PASSED!" << std::endl;
+    std::cout << "\nAll tests PASSED!" << std::endl;
     return 0;
   } catch (const std::exception &e) {
-  std::cerr << "Test failed with exception: " << e.what() << std::endl;
+    std::cerr << "Test failed: " << e.what() << std::endl;
     return 1;
   }
 }
