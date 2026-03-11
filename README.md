@@ -236,7 +236,7 @@ General Options:
 
 ### Macro Structure for Groups
 
-``cpp
+```cpp
 #define MY_GROUPS(F)                                               \
   F(GroupEnumName, "Display Name")                                 \
   F(AnotherGroup, "Another Display Name")
