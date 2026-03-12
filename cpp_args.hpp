@@ -165,16 +165,18 @@ public:
   bool HasArg(int id) const { return parsedArgs.find(id) != parsedArgs.end(); }
 
   /**
-   * @brief Get the value of an option (returns last value if specified multiple times)
+   * @brief Get the value of an option (returns last value if specified multiple
+   * times)
    * @param id The option enum ID (e.g., OPT_port)
-   * @return The option value, or empty string if not provided
+   * @param defaultValue Default value to return if the option is not provided
+   * @return The option value, or defaultValue if not provided
    */
-  std::string GetArgValue(int id) const {
+  std::string GetArgValue(int id, const std::string &defaultValue = "") const {
     auto it = parsedArgs.find(id);
     if (it != parsedArgs.end() && !it->second.empty()) {
       return it->second.back(); // Return last value for backward compatibility
     }
-    return "";
+    return defaultValue;
   }
 
   /**
@@ -182,7 +184,7 @@ public:
    * @param id The option enum ID (e.g., OPT_port)
    * @return Vector of all values, or empty vector if not provided
    */
-  const std::vector<std::string>& GetAllArgValues(int id) const {
+  const std::vector<std::string> &GetAllArgValues(int id) const {
     static const std::vector<std::string> emptyVec;
     auto it = parsedArgs.find(id);
     return (it != parsedArgs.end()) ? it->second : emptyVec;
@@ -306,10 +308,11 @@ public:
 
       for (const auto &opt : optionTable) {
         // If the option's group has an empty name, treat it as ungrouped
-        bool isUngrouped = (opt.groupId < 0 || 
-                           opt.groupId >= static_cast<int>(optionGroups.size()) ||
-                           optionGroups[opt.groupId].name.empty());
-        
+        bool isUngrouped =
+            (opt.groupId < 0 ||
+             opt.groupId >= static_cast<int>(optionGroups.size()) ||
+             optionGroups[opt.groupId].name.empty());
+
         if (!isUngrouped) {
           groupedOptions[opt.groupId].push_back(&opt);
         } else {
@@ -455,7 +458,8 @@ private:
 
   OptionTable optionTable;
   OptionGroupTable optionGroups;
-  std::map<int, std::vector<std::string>> parsedArgs; // Support multiple values per option
+  std::map<int, std::vector<std::string>>
+      parsedArgs;                  // Support multiple values per option
   std::vector<std::string> inputs; // Positional inputs (non-option arguments)
   std::vector<std::string> unknownArgs; // Unknown options
   bool allowUnknown; // Whether to allow unknown options without error
