@@ -24,7 +24,8 @@ struct Option {
   // - OPTION requires a value (separate argument)
   // - FLAG does not require a value
   // - JOINED allows value to be joined with option name
-  enum Kind { OPTION_KIND = 0, FLAG_KIND = 1, JOINED_KIND = 2 };
+  // - SEPARATE_OR_JOINED allows both separate and joined value
+  enum Kind { OPTION_KIND = 0, FLAG_KIND = 1, JOINED_KIND = 2, SEPARATE_OR_JOINED_KIND = 3 };
   Kind kind;
 
   // Group ID for grouping options in help output
@@ -88,7 +89,8 @@ public:
         std::string value = arg.substr(2);
         opt = FindOptionByShortName(shortName);
 
-        if (opt && opt->kind == Option::JOINED_KIND) {
+        if (opt && (opt->kind == Option::JOINED_KIND || 
+                    opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -109,7 +111,8 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByLongName(longName);
 
-        if (opt && opt->kind == Option::JOINED_KIND) {
+        if (opt && (opt->kind == Option::JOINED_KIND || 
+                    opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -475,12 +478,16 @@ private:
  * - For joined options: F(name, short_name, help_text, JOINED,
  * {allowed_values}) Joined options allow value to be attached directly (e.g.,
  * -lcuda, --library=cuda)
+ * - For separate or joined options: F(name, short_name, help_text,
+ * SEPARATE_OR_JOINED, {allowed_values}) Allows both separate argument (e.g.,
+ * -I /usr/include) and joined value (e.g., -I/usr/include)
  */
 
 // Kind identifiers for macro usage
 #define OPTION Option::OPTION_KIND
 #define FLAG Option::FLAG_KIND
 #define JOINED Option::JOINED_KIND
+#define SEPARATE_OR_JOINED Option::SEPARATE_OR_JOINED_KIND
 
 // GENERATE_ENUM takes kind and optional allowed values (ignored for enum
 // generation)
