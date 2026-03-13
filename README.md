@@ -9,7 +9,7 @@ A lightweight, header-only command-line argument parser for C++
 - **Short & long options** - Support for both `-p` and `--port` style arguments
 - **Flag support** - Boolean flags that don't require values (e.g., `--help`, `-v`)
 - **Value validation** - Define allowed values for specific arguments
-- **Joined options** - Support attached values like `-lcuda` or `--library=cuda`
+- **Joined options** - Support attached values like `-lcuda` or `--librarycuda` (short and long options)
 - **Positional inputs** - Non-option arguments are preserved as positional inputs
 - **Unknown option handling** - Configurable handling of unknown options with retrieval API
 - **X-Macros** - Clean, maintainable option definitions using X-Macro pattern
@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
 
 # Joined options (value attached directly)
 ./my_app -Lcuda                    # Short option with joined value
-./my_app --library=cuda            # Long option with = separator
+./my_app --librarycuda             # Long option with joined value
 ./my_app -Lstdc++ -I/usr/include   # Multiple joined options
 
 # Flags (no value needed)
@@ -118,14 +118,15 @@ F(name, short_name, "help text", OPTION, {allowed_values})
 F(name, short_name, "help text", FLAG, {})
 ```
 
-**Joined Options** (value attached directly):
+**Joined Options** (value attached directly to option name):
 ```cpp
 F(name, short_name, "help text", JOINED, {allowed_values})
 ```
 
 Supports:
 - Short format: `-Xvalue` (e.g., `-lcuda`, `-I/usr/include`)
-- Long format: `--name=value` (e.g., `--library=cuda`)
+- Long format: `--namevalue` (e.g., `--librarycuda`, `--lpthread`)
+- **Note**: Long format with `=` (e.g., `--library=cuda`) is NOT supported for JOINED kind. Use SEPARATE_OR_JOINED if you need long format with `=` separator.
 
 Parameters:
 - `name`: Option identifier (use underscores, e.g., `log_lvl`)
@@ -249,6 +250,7 @@ DEFINE_ARGS_WITH_GROUP(EnumName, GroupEnumName, TableName,
 ```
 
 This generates:
+
 - Option enum: `OPT_option_name`, etc.
 - Group enum: `GRP_GroupEnumName`, `GRP_AnotherGroup`, etc.
 - OptionTable: `TableName` with groupId for each option
@@ -388,7 +390,7 @@ Invalid values will cause parsing to fail with an error message.
 
 ### Joined Options (Compiler-style Flags)
 
-Perfect for compiler-like interfaces where values are attached directly:
+Perfect for compiler-like interfaces where values are attached directly to option names:
 
 ```cpp
 #define COMPILER_ARGS(F) \
@@ -401,10 +403,17 @@ Perfect for compiler-like interfaces where values are attached directly:
 DEFINE_ARGS(Compiler, CompilerTable, COMPILER_ARGS)
 ```
 
-Usage:
+Usage (both short and long options supported):
 ```bash
-g++ -Lcuda -I/usr/local/include -DNDEBUG -o app.out main.cpp
+g++ -Lcuda -I/usr/local/include -DNDEBUG --librarypthread -o app.out main.cpp
+#    ^^^^^   ^^^^^^^^^^^^^^^^     ^^^^^^^^^^^       ^^^^^^^^^^^^^^
+#    JOINED  JOINED               JOINED(long)      JOINED(long)
 ```
+
+**Supported formats**:
+- Short option with joined value: `-Lcuda`, `-I/path`
+- Long option with joined value: `--librarycuda`, `--lpthread`
+- **Not supported**: `--library=cuda` (use SEPARATE_OR_JOINED for `=` separator)
 
 ### Positional Inputs
 

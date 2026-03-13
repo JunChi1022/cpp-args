@@ -13,7 +13,7 @@
 DEFINE_ARGS(JoinedTest, JoinedTable, TEST_JOINED_OPTIONS)
 
 void TestJoinedShortOption() {
-  std::cout << "Test: Joined Short Option (-lcuda)... ";
+  std::cout << "Test: Joined Short Option (-Lcuda)... ";
 
   int argc;
   const char *prog = "./test";
@@ -32,19 +32,17 @@ void TestJoinedShortOption() {
 }
 
 void TestJoinedLongOption() {
-  std::cout << "Test: Joined Long Option (--library=cuda)... ";
+  std::cout << "Test: Joined Long Option (should not support long form with value)... ";
 
+  // JOINED 类型不支持长格式带值，这个测试应该失败
   int argc;
   const char *prog = "./test";
-  std::vector<std::string> args = {prog, "--library=cuda", "--include=/opt/include"};
+  std::vector<std::string> args = {prog, "--library=cuda"};
   char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(JoinedTable);
-  assert(parser.Parse(argc, argv));
-  assert(parser.HasArg(OPT_library));
-  assert(parser.GetArgValue(OPT_library) == "cuda");
-  assert(parser.HasArg(OPT_include));
-  assert(parser.GetArgValue(OPT_include) == "/opt/include");
+  // JOINED 类型的长格式带等号不应该被解析成功
+  assert(!parser.Parse(argc, argv));
 
   CleanupArgs(argv, argc);
   std::cout << "PASSED" << std::endl;

@@ -25,7 +25,12 @@ struct Option {
   // - FLAG does not require a value
   // - JOINED allows value to be joined with option name
   // - SEPARATE_OR_JOINED allows both separate and joined value
-  enum Kind { OPTION_KIND = 0, FLAG_KIND = 1, JOINED_KIND = 2, SEPARATE_OR_JOINED_KIND = 3 };
+  enum Kind {
+    OPTION_KIND = 0,
+    FLAG_KIND = 1,
+    JOINED_KIND = 2,
+    SEPARATE_OR_JOINED_KIND = 3
+  };
   Kind kind;
 
   // Group ID for grouping options in help output
@@ -86,11 +91,24 @@ public:
       // If not found and it's a short option, try to extract joined value
       if (!opt && arg.size() > 2 && arg[0] == '-' && arg[1] != '-') {
         std::string shortName = arg.substr(1, 1);
-        std::string value = arg.substr(2);
+        std::string value;
+
+        // Check if there's an '=' to split on
+        size_t eqPos = arg.find('=');
+        if (eqPos != std::string::npos && eqPos > 1) {
+          // Use '=' to split: -I=value
+          shortName = arg.substr(1, eqPos - 1);
+          value = arg.substr(eqPos + 1);
+        } else {
+          // No '=', take everything after short name: -Ivalue
+          value = arg.substr(2);
+        }
+
         opt = FindOptionByShortName(shortName);
 
-        if (opt && (opt->kind == Option::JOINED_KIND || 
-                    opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
+        if (opt && (opt->kind == Option::JOINED_KIND ||
+                    opt->kind == Option::SEPARATE_OR_JOINED_KIND ||
+                    opt->kind == Option::OPTION_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -111,7 +129,92 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByLongName(longName);
 
-        if (opt && (opt->kind == Option::JOINED_KIND || 
+        // JOINED 类型不支持长格式带等号，只支持 SEPARATE_OR_JOINED 和 OPTION
+        if (opt && (opt->kind == Option::SEPARATE_OR_JOINED_KIND ||
+                    opt->kind == Option::OPTION_KIND)) {
+          // Validate value if allowed values are specified
+          if (!opt->allowed.empty() &&
+              opt->allowed.find(value) == opt->allowed.end()) {
+            std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                      << std::endl;
+            return false;
+          }
+          parsedArgs[opt->id].push_back(value);
+          continue;
+        }
+      }
+
+      // If not found and it's a long option without '=', try to extract joined
+      // value for JOINED kind
+      if (!opt && arg.size() > 3 && arg.find("--") == 0) {
+        std::string longName = arg.substr(2);
+        opt = FindOptionByLongName(longName);
+
+        // Found exact match but it's JOINED kind without value
+        if (opt && opt->kind == Option::JOINED_KIND) {
+          std::cerr << "Error: Missing value for " << arg << std::endl;
+          return false;
+        }
+
+        // Try to find a JOINED option where the value is attached directly
+        // e.g., --librarycuda where "library" is the long name and "cuda" is
+        // the value
+        if (!opt) {
+          for (const auto &option : optionTable) {
+            if (option.kind == Option::JOINED_KIND) {
+              std::string expectedPrefix = "--" + option.longName;
+              if (arg.find(expectedPrefix) == 0 &&
+                  arg.size() > expectedPrefix.size()) {
+                std::string value = arg.substr(expectedPrefix.size());
+                // Validate value if allowed values are specified
+                if (!option.allowed.empty() &&
+                    option.allowed.find(value) == option.allowed.end()) {
+                  std::cerr << "Error: Invalid value '" << value << "' for "
+                            << arg << std::endl;
+                  return false;
+                }
+                parsedArgs[option.id].push_back(value);
+                opt = &option;
+                break;
+              }
+            }
+          }
+        }
+
+        if (opt)
+          continue;
+      }
+
+      // For regular OPTION kind with short name, try to extract value with '='
+      if (!opt && arg.size() > 2 && arg[0] == '-' && arg[1] != '-' &&
+          arg.find('=') != std::string::npos) {
+        size_t eqPos = arg.find('=');
+        std::string shortName = arg.substr(1, eqPos - 1);
+        std::string value = arg.substr(eqPos + 1);
+        opt = FindOptionByShortName(shortName);
+
+        if (opt && (opt->kind == Option::OPTION_KIND ||
+                    opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
+          // Validate value if allowed values are specified
+          if (!opt->allowed.empty() &&
+              opt->allowed.find(value) == opt->allowed.end()) {
+            std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                      << std::endl;
+            return false;
+          }
+          parsedArgs[opt->id].push_back(value);
+          continue;
+        }
+      }
+
+      // For regular OPTION kind with long name, try to extract value with '='
+      if (!opt && arg.find('=') != std::string::npos && arg.find("--") == 0) {
+        size_t eqPos = arg.find('=');
+        std::string longName = arg.substr(2, eqPos - 2);
+        std::string value = arg.substr(eqPos + 1);
+        opt = FindOptionByLongName(longName);
+
+        if (opt && (opt->kind == Option::OPTION_KIND ||
                     opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
