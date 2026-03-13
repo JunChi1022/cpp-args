@@ -43,7 +43,6 @@ void TestJoined_LongWithEquals_ShouldFail() {
   char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
-  // JOINED 类型不支持长格式带等号，应该解析失败
   assert(!parser.Parse(argc, argv));
 
   CleanupArgs(argv, argc);
@@ -55,7 +54,6 @@ void TestJoined_MultipleValues() {
 
   int argc;
   const char *prog = "./test";
-  // JOINED 类型只支持短格式直接连接，不支持长格式带等号
   std::vector<std::string> args = {prog, "-Lcuda", "-Lpthread", "-Lstdc++"};
   char **argv = CreateArgs(args, argc);
 
@@ -78,7 +76,6 @@ void TestJoined_LongOptionWithValue() {
 
   int argc;
   const char *prog = "./test";
-  // JOINED 类型支持长选项直接连接值的形式
   std::vector<std::string> args = {prog, "--librarycuda", "--librarystdc++"};
   char **argv = CreateArgs(args, argc);
 
@@ -100,7 +97,6 @@ void TestJoined_ShortAndLongMixed() {
 
   int argc;
   const char *prog = "./test";
-  // 混合使用短选项和长选项直接连接形式
   std::vector<std::string> args = {prog, "-Lcuda", "--librarystdc++", "-Lpthread"};
   char **argv = CreateArgs(args, argc);
 
@@ -296,7 +292,7 @@ void TestMixed_AllKinds() {
   std::vector<std::string> args = {
     prog,
     "-Lcuda",                    // JOINED short
-    "-Lpthread",                 // JOINED short (JOINED 不支持长格式带等号)
+    "-Lpthread",                 // JOINED short
     "-I", "/usr/include",        // SEPARATE_OR_JOINED space
     "-I=/usr/local/include",     // SEPARATE_OR_JOINED short with =
     "-I/usr/share/include",      // SEPARATE_OR_JOINED short joined

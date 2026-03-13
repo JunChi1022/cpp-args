@@ -26,8 +26,8 @@ A lightweight, header-only command-line argument parser for C++
 
 // Define all arguments in one place - mix options and flags freely
 #define MY_APP_ARGS(F)                                                         \
-  F(host, H, "Server hostname", OPTION, {})                                    \
-  F(port, p, "Server port", OPTION, {"8080", "9090"})                          \
+  F(host, H, "Server hostname", SEPARATE, {})                                  \
+  F(port, p, "Server port", SEPARATE, {"8080", "9090"})                        \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++"})                    \
   F(verbose, v, "Enable verbose mode", FLAG, {})                               \
   F(help, h, "Print help message", FLAG, {})
@@ -108,9 +108,9 @@ int main(int argc, char* argv[]) {
 
 ### Defining Arguments
 
-**Options** (require separate value):
+**Separate Options** (require separate value or '=' separator):
 ```cpp
-F(name, short_name, "help text", OPTION, {allowed_values})
+F(name, short_name, "help text", SEPARATE, {allowed_values})
 ```
 
 **Flags** (no value required):
@@ -123,24 +123,57 @@ F(name, short_name, "help text", FLAG, {})
 F(name, short_name, "help text", JOINED, {allowed_values})
 ```
 
-Supports:
-- Short format: `-Xvalue` (e.g., `-lcuda`, `-I/usr/include`)
-- Long format: `--namevalue` (e.g., `--librarycuda`, `--lpthread`)
-- **Note**: Long format with `=` (e.g., `--library=cuda`) is NOT supported for JOINED kind. Use SEPARATE_OR_JOINED if you need long format with `=` separator.
+### Separate Options (Standard Command-line Flags)
+
+Most common option type for standard command-line interfaces. Supports both space-separated and equals-separated formats:
+
+```cpp
+#define MY_ARGS(F) \
+  F(output, o, "Output file", SEPARATE, {}) \
+  F(verbose, v, "Verbose mode", FLAG, {}) \
+  F(config, c, "Config file", SEPARATE, {"dev", "test", "prod"})
+
+DEFINE_ARGS(App, AppTable, MY_ARGS)
+```
+
+Usage examples:
+```bash
+# Space-separated format
+./app -o out.txt
+./app --output out.txt  
+./app -c dev
+
+# Equals-separated format
+./app -o=out.txt
+./app --output=out.txt
+./app --config=dev
+
+# Mixed formats are fully supported
+./app -o output.txt --config=prod -v
+```
+
+**Supported formats for SEPARATE kind**:
+- Short option with space: `-o value`
+- Long option with space: `--output value`
+- Short option with equals: `-o=value`
+- Long option with equals: `--output=value`
+- All formats are interchangeable and can be mixed
+
+### Joined Options (Compiler-style Flags)
 
 Parameters:
 - `name`: Option identifier (use underscores, e.g., `log_lvl`)
 - `short_name`: Single character short form (e.g., `p` for `-p`)
 - `help_text`: Description shown in help message
-- `OPTION`, `FLAG`, or `JOINED`: Kind identifier
-- `allowed_values`: For OPTION/JOINED - list of valid values like `{"json", "xml"}`, use `{}` for any value
+- `SEPARATE`, `FLAG`, `JOINED`, or `SEPARATE_OR_JOINED`: Kind identifier
+- `allowed_values`: For SEPARATE/JOINED - list of valid values like `{"json", "xml"}`, use `{}` for any value
 
 ### Macro Structure
 
 ```
 #define MY_ARGS(F)                                               \
-  F(option1, o, "Option 1", OPTION, {})                          \
-  F(option2, O, "Option 2", OPTION, {"a", "b", "c"})             \
+  F(option1, o, "Option 1", SEPARATE, {})                        \
+  F(option2, O, "Option 2", SEPARATE, {"a", "b", "c"})           \
   F(joined1, j, "Joined opt", JOINED, {"x", "y"})                \
   F(flag1, f, "Flag 1", FLAG, {})                                \
   F(flag2, F, "Flag 2", FLAG, {})
@@ -170,10 +203,10 @@ Organize related options into logical groups with automatic grouped help display
 
 // Define options with group assignments
 #define MY_ARGS(F)                                                             \
-  F(Server, host, H, "Server hostname", OPTION, {})                            \
-  F(Server, port, p, "Server port", OPTION, {"8080", "9090"})                  \
-  F(Database, db, d, "Database type", OPTION, {"mysql", "postgres"})           \
-  F(Database, connection, c, "Connection string", OPTION, {})                  \
+  F(Server, host, H, "Server hostname", SEPARATE, {})                          \
+  F(Server, port, p, "Server port", SEPARATE, {"8080", "9090"})                \
+  F(Database, db, d, "Database type", SEPARATE, {"mysql", "postgres"})         \
+  F(Database, connection, c, "Connection string", SEPARATE, {})                \
   F(General, verbose, v, "Verbose mode", FLAG, {})                             \
   F(General, help, h, "Print help", FLAG, {})
 
@@ -379,8 +412,8 @@ Restrict option values to a predefined set:
 
 ```cpp
 #define ARGS(F) \
-  F(format, f, "Output format", OPTION, {"json", "xml", "text"}) \
-  F(level, l, "Log level", OPTION, {"debug", "info", "warn", "error"}) \
+  F(format, f, "Output format", SEPARATE, {"json", "xml", "text"}) \
+  F(level, l, "Log level", SEPARATE, {"debug", "info", "warn", "error"}) \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})
 
 DEFINE_ARGS(App, AppTable, ARGS)
@@ -397,7 +430,7 @@ Perfect for compiler-like interfaces where values are attached directly to optio
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"}) \
   F(include, I, "Include path", JOINED, {}) \
   F(define, D, "Define macro", JOINED, {}) \
-  F(output, o, "Output file", OPTION, {}) \
+  F(output, o, "Output file", SEPARATE, {}) \
   F(verbose, v, "Verbose mode", FLAG, {})
 
 DEFINE_ARGS(Compiler, CompilerTable, COMPILER_ARGS)
@@ -406,8 +439,6 @@ DEFINE_ARGS(Compiler, CompilerTable, COMPILER_ARGS)
 Usage (both short and long options supported):
 ```bash
 g++ -Lcuda -I/usr/local/include -DNDEBUG --librarypthread -o app.out main.cpp
-#    ^^^^^   ^^^^^^^^^^^^^^^^     ^^^^^^^^^^^       ^^^^^^^^^^^^^^
-#    JOINED  JOINED               JOINED(long)      JOINED(long)
 ```
 
 **Supported formats**:
@@ -421,7 +452,7 @@ Non-option arguments are automatically preserved as positional inputs:
 
 ```cpp
 #define MY_ARGS(F) \
-  F(output, o, "Output file", OPTION, {}) \
+  F(output, o, "Output file", SEPARATE, {}) \
   F(verbose, v, "Verbose mode", FLAG, {})
 
 DEFINE_ARGS(App, AppTable, MY_ARGS)
