@@ -7,7 +7,7 @@
 #define TEST_JOINED_OPTIONS(F)                                                 \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})         \
   F(include, I, "Include directory", JOINED, {})                               \
-  F(output, o, "Output file", OPTION, {})                                      \
+  F(output, o, "Output file", SEPARATE, {})                                      \
   F(verbose, v, "Verbose mode", FLAG, {})
 
 DEFINE_ARGS(JoinedTest, JoinedTable, TEST_JOINED_OPTIONS)

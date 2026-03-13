@@ -5,7 +5,7 @@
 
 // Test with mixed options for input parsing
 #define TEST_INPUT_ARGS(F)                                                     \
-  F(output, o, "Output file", OPTION, {})                                      \
+  F(output, o, "Output file", SEPARATE, {})                                      \
   F(verbose, v, "Verbose mode", FLAG, {})                                      \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++"})
 

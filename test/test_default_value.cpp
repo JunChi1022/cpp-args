@@ -4,10 +4,10 @@
 #include <iostream>
 
 #define TEST_OPTIONS(V)                                                        \
-  V(port, p, "Server port number", OPTION, {})                                 \
-  V(log_lvl, l, "Logging verbosity", OPTION, {"debug", "info"})                \
-  V(output, o, "Output file", OPTION, {})                                      \
-  V(host, h, "Server host", OPTION, {})
+  V(port, p, "Server port number", SEPARATE, {})                                 \
+  V(log_lvl, l, "Logging verbosity", SEPARATE, {"debug", "info"})                \
+  V(output, o, "Output file", SEPARATE, {})                                      \
+  V(host, h, "Server host", SEPARATE, {})
 
 DEFINE_ARGS(TestOption, TestTable, TEST_OPTIONS)
 

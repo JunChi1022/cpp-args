@@ -19,10 +19,10 @@ TEST(TestOptionGroup_BasicGroup) {
    F(Backend, "Backend Options")
   
   #define ARGS(F)                                                            \
-   F(Frontend, host, H, "Host", OPTION, {})                                  \
-   F(Frontend, port, p, "Port", OPTION, {})                                  \
-   F(Backend, db, d, "Database", OPTION, {})                                 \
-   F(Backend, cache, c, "Cache", OPTION, {})
+   F(Frontend, host, H, "Host", SEPARATE, {})                                  \
+   F(Frontend, port, p, "Port", SEPARATE, {})                                  \
+   F(Backend, db, d, "Database", SEPARATE, {})                                 \
+   F(Backend, cache, c, "Cache", SEPARATE, {})
   
   DEFINE_ARGS_WITH_GROUP(AppArgs, AppGroups, AppTable, ARGS, GROUPS)
   
@@ -60,9 +60,9 @@ TEST(TestOptionGroup_GetGroupId) {
    F(Backend, "Backend Options")
   
   #define ARGS(F)                                                            \
-   F(Frontend, host, H, "Host", OPTION, {})                                  \
-   F(Frontend, port, p, "Port", OPTION, {})                                  \
-   F(Backend, db, d, "Database", OPTION, {})
+   F(Frontend, host, H, "Host", SEPARATE, {})                                  \
+   F(Frontend, port, p, "Port", SEPARATE, {})                                  \
+   F(Backend, db, d, "Database", SEPARATE, {})
   
   DEFINE_ARGS_WITH_GROUP(AppArgs, AppGroups, AppTable, ARGS, GROUPS)
   
@@ -89,8 +89,8 @@ TEST(TestOptionGroup_MixedGroups) {
   #define ARGS(F)                                                            \
    F(Default, verbose, v, "Verbose mode", FLAG, {})                          \
    F(Default, help, h, "Print help", FLAG, {})                               \
-   F(Frontend, host, H, "Host", OPTION, {})                                  \
-   F(Frontend, port, p, "Port", OPTION, {})
+   F(Frontend, host, H, "Host", SEPARATE, {})                                  \
+   F(Frontend, port, p, "Port", SEPARATE, {})
   
   DEFINE_ARGS_WITH_GROUP(AppArgs, AppGroups, AppTable, ARGS, GROUPS)
   
@@ -132,10 +132,10 @@ TEST(TestOptionGroup_PrintHelp) {
   
   #define ARGS(F)                                                            \
    F(Default, verbose, v, "Verbose", FLAG, {})                               \
-   F(Frontend, host, H, "Host", OPTION, {})                                  \
-   F(Frontend, port, p, "Port", OPTION, {})                                  \
-   F(Backend, db, d, "Database", OPTION, {})                                 \
-   F(Backend, cache, c, "Cache", OPTION, {})
+   F(Frontend, host, H, "Host", SEPARATE, {})                                  \
+   F(Frontend, port, p, "Port", SEPARATE, {})                                  \
+   F(Backend, db, d, "Database", SEPARATE, {})                                 \
+   F(Backend, cache, c, "Cache", SEPARATE, {})
   
   DEFINE_ARGS_WITH_GROUP(AppArgs, AppGroups, AppTable, ARGS, GROUPS)
   
@@ -177,8 +177,8 @@ TEST(TestOptionGroup_ThreeGroups) {
    F(Utils, "Utility Options")
   
   #define ARGS(F)                                                            \
-   F(Frontend, host, H, "Host", OPTION, {})                                  \
-   F(Backend, db, d, "Database", OPTION, {})                                 \
+   F(Frontend, host, H, "Host", SEPARATE, {})                                  \
+   F(Backend, db, d, "Database", SEPARATE, {})                                 \
    F(Utils, verbose, v, "Verbose", FLAG, {})
   
   DEFINE_ARGS_WITH_GROUP(AppArgs, AppGroups, AppTable, ARGS, GROUPS)
@@ -211,10 +211,10 @@ TEST(TestOptionGroup_EmptyGroupName) {
    F(General, "")  // Empty name should be treated as ungrouped
   
   #define ARGS(F)                                                            \
-   F(Server, host, H, "Server hostname", OPTION, {})                         \
-   F(Server, port, p, "Port", OPTION, {"8080", "9090"})                      \
-   F(Database, db, d, "Database type", OPTION, {"mysql", "postgres"})        \
-   F(Database, connection, c, "Connection string", OPTION, {})               \
+   F(Server, host, H, "Server hostname", SEPARATE, {})                         \
+   F(Server, port, p, "Port", SEPARATE, {"8080", "9090"})                      \
+   F(Database, db, d, "Database type", SEPARATE, {"mysql", "postgres"})        \
+   F(Database, connection, c, "Connection string", SEPARATE, {})               \
    F(General, verbose, v, "Verbose mode", FLAG, {})                          \
    F(General, help, h, "Print help", FLAG, {})
   

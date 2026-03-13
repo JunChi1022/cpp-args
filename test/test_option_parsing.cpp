@@ -7,8 +7,8 @@
 #define TEST_OPTIONS(F)                                                        \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})         \
   F(include, I, "Include directory", SEPARATE_OR_JOINED, {})                   \
-  F(output, o, "Output file", OPTION, {})                                      \
-  F(port, p, "Port number", OPTION, {})                                        \
+  F(output, o, "Output file", SEPARATE, {})                                      \
+  F(port, p, "Port number", SEPARATE, {})                                        \
   F(verbose, v, "Verbose mode", FLAG, {})
 
 DEFINE_ARGS(OptionTest, ParsingTestTable, TEST_OPTIONS)
@@ -196,11 +196,11 @@ void TestSeparateOrJoined_LongWithEquals() {
 }
 
 // ============================================================================
-// Regular OPTION Kind Tests
+// Regular SEPARATE Kind Tests
 // ============================================================================
 
 void TestRegularOption_SpaceSeparated() {
-  std::cout << "Test: OPTION - Space separated (-o output.txt)... ";
+  std::cout << "Test: SEPARATE - Space separated (-o output.txt)... ";
 
   int argc;
   const char *prog = "./test";
@@ -217,7 +217,7 @@ void TestRegularOption_SpaceSeparated() {
 }
 
 void TestRegularOption_ShortWithEquals() {
-  std::cout << "Test: OPTION - Short with equals (-o=output.txt)... ";
+  std::cout << "Test: SEPARATE - Short with equals (-o=output.txt)... ";
 
   int argc;
   const char *prog = "./test";
@@ -234,7 +234,7 @@ void TestRegularOption_ShortWithEquals() {
 }
 
 void TestRegularOption_LongWithEquals() {
-  std::cout << "Test: OPTION - Long with equals (--output=output.txt)... ";
+  std::cout << "Test: SEPARATE - Long with equals (--output=output.txt)... ";
 
   int argc;
   const char *prog = "./test";
@@ -251,7 +251,7 @@ void TestRegularOption_LongWithEquals() {
 }
 
 void TestRegularOption_LongSpaceSeparated() {
-  std::cout << "Test: OPTION - Long space separated (--output output.txt)... ";
+  std::cout << "Test: SEPARATE - Long space separated (--output output.txt)... ";
 
   int argc;
   const char *prog = "./test";
@@ -268,7 +268,7 @@ void TestRegularOption_LongSpaceSeparated() {
 }
 
 void TestRegularOption_WithNumericValue() {
-  std::cout << "Test: OPTION - Numeric value with equals (-p=8080)... ";
+  std::cout << "Test: SEPARATE - Numeric value with equals (-p=8080)... ";
 
   int argc;
   const char *prog = "./test";
@@ -301,8 +301,8 @@ void TestMixed_AllKinds() {
     "-I=/usr/local/include",     // SEPARATE_OR_JOINED short with =
     "-I/usr/share/include",      // SEPARATE_OR_JOINED short joined
     "--include=/opt/include",    // SEPARATE_OR_JOINED long with =
-    "-o", "app.out",             // OPTION space
-    "--port=8080",               // OPTION long with =
+    "-o", "app.out",             // SEPARATE space
+    "--port=8080",               // SEPARATE long with =
     "-v"                         // FLAG
   };
   char **argv = CreateArgs(args, argc);
@@ -326,11 +326,11 @@ void TestMixed_AllKinds() {
   assert(includes[2] == "/usr/share/include");
   assert(includes[3] == "/opt/include");
   
-  // Check output (OPTION)
+  // Check output (SEPARATE)
   assert(parser.HasArg(OPT_output));
   assert(parser.GetArgValue(OPT_output) == "app.out");
   
-  // Check port (OPTION)
+  // Check port (SEPARATE)
   assert(parser.HasArg(OPT_port));
   assert(parser.GetArgValue(OPT_port) == "8080");
   
@@ -361,7 +361,7 @@ void TestJoined_InvalidValue() {
 }
 
 void TestRegularOption_MissingValue() {
-  std::cout << "Test: ERROR - OPTION missing value... ";
+  std::cout << "Test: ERROR - SEPARATE missing value... ";
 
   int argc;
   const char *prog = "./test";
@@ -392,7 +392,7 @@ int main() {
   TestSeparateOrJoined_ShortJoined();
   TestSeparateOrJoined_LongWithEquals();
 
-  // Regular OPTION tests
+  // Regular SEPARATE tests
   TestRegularOption_SpaceSeparated();
   TestRegularOption_ShortWithEquals();
   TestRegularOption_LongWithEquals();

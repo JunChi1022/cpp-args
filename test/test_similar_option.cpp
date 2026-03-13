@@ -15,8 +15,8 @@
 TEST(TestSimilarOption_BasicTypo) {
 #define OPTIONS1(F)                                                            \
   F(verbose, v, "Enable verbose", FLAG, {})                                    \
-  F(port, p, "Server port", OPTION, {})                                        \
-  F(log_lvl, l, "Log level", OPTION, {"debug", "info"})
+  F(port, p, "Server port", SEPARATE, {})                                        \
+  F(log_lvl, l, "Log level", SEPARATE, {"debug", "info"})
 
   DEFINE_ARGS(App, AppTable, OPTIONS1)
 
@@ -32,7 +32,7 @@ TEST(TestSimilarOption_BasicTypo) {
 TEST(TestSimilarOption_ShortTypo) {
 #define OPTIONS2(F)                                                            \
   F(verbose, v, "Enable verbose", FLAG, {})                                    \
-  F(port, p, "Server port", OPTION, {})
+  F(port, p, "Server port", SEPARATE, {})
 
   DEFINE_ARGS(App, AppTable, OPTIONS2)
 
@@ -47,8 +47,8 @@ TEST(TestSimilarOption_ShortTypo) {
 // Test underscore/dash normalization
 TEST(TestSimilarOption_UnderscoreDash) {
 #define OPTIONS3(F)                                                            \
-  F(log_lvl, l, "Log level", OPTION, {"debug", "info"})                        \
-  F(output_dir, o, "Output directory", OPTION, {})
+  F(log_lvl, l, "Log level", SEPARATE, {"debug", "info"})                        \
+  F(output_dir, o, "Output directory", SEPARATE, {})
 
   DEFINE_ARGS(App, AppTable, OPTIONS3)
 
@@ -64,7 +64,7 @@ TEST(TestSimilarOption_UnderscoreDash) {
 TEST(TestSimilarOption_NoMatch) {
 #define OPTIONS4(F)                                                            \
   F(verbose, v, "Enable verbose", FLAG, {})                                    \
-  F(port, p, "Server port", OPTION, {})
+  F(port, p, "Server port", SEPARATE, {})
 
   DEFINE_ARGS(App, AppTable, OPTIONS4)
 
@@ -80,7 +80,7 @@ TEST(TestSimilarOption_NoMatch) {
 TEST(TestParseErrorWithSuggestion) {
 #define OPTIONS5(F)                                                            \
   F(verbose, v, "Enable verbose", FLAG, {})                                    \
-  F(port, p, "Server port", OPTION, {})
+  F(port, p, "Server port", SEPARATE, {})
 
   DEFINE_ARGS(App, AppTable, OPTIONS5)
 
@@ -107,7 +107,7 @@ TEST(TestParseErrorWithSuggestion) {
 TEST(TestSimilarOption_JoinedTypo) {
 #define OPTIONS6(F)                                                            \
   F(library, L, "Library to use", JOINED, {"cuda", "opencl"})                  \
-  F(output, o, "Output file", OPTION, {})
+  F(output, o, "Output file", SEPARATE, {})
 
   DEFINE_ARGS(App, AppTable, OPTIONS6)
 

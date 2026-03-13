@@ -21,12 +21,12 @@ struct Option {
   std::set<std::string> allowed;
 
   // Option kind:
-  // - OPTION requires a value (separate argument)
+  // - SEPARATE requires a value (separate argument or with '=')
   // - FLAG does not require a value
-  // - JOINED allows value to be joined with option name
+  // - JOINED allows value to be joined with option name (short or long format)
   // - SEPARATE_OR_JOINED allows both separate and joined value
   enum Kind {
-    OPTION_KIND = 0,
+    SEPARATE_KIND = 0,
     FLAG_KIND = 1,
     JOINED_KIND = 2,
     SEPARATE_OR_JOINED_KIND = 3
@@ -108,7 +108,7 @@ public:
 
         if (opt && (opt->kind == Option::JOINED_KIND ||
                     opt->kind == Option::SEPARATE_OR_JOINED_KIND ||
-                    opt->kind == Option::OPTION_KIND)) {
+                    opt->kind == Option::SEPARATE_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -129,9 +129,9 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByLongName(longName);
 
-        // JOINED 类型不支持长格式带等号，只支持 SEPARATE_OR_JOINED 和 OPTION
+        // JOINED kind doesn't support long format with '=', only SEPARATE_OR_JOINED and SEPARATE
         if (opt && (opt->kind == Option::SEPARATE_OR_JOINED_KIND ||
-                    opt->kind == Option::OPTION_KIND)) {
+                    opt->kind == Option::SEPARATE_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -193,7 +193,7 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByShortName(shortName);
 
-        if (opt && (opt->kind == Option::OPTION_KIND ||
+        if (opt && (opt->kind == Option::SEPARATE_KIND ||
                     opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
@@ -214,7 +214,7 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByLongName(longName);
 
-        if (opt && (opt->kind == Option::OPTION_KIND ||
+        if (opt && (opt->kind == Option::SEPARATE_KIND ||
                     opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
@@ -587,7 +587,8 @@ private:
  */
 
 // Kind identifiers for macro usage
-#define OPTION Option::OPTION_KIND
+#define OPTION Option::SEPARATE_KIND
+#define SEPARATE Option::SEPARATE_KIND
 #define FLAG Option::FLAG_KIND
 #define JOINED Option::JOINED_KIND
 #define SEPARATE_OR_JOINED Option::SEPARATE_OR_JOINED_KIND

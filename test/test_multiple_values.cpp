@@ -15,7 +15,7 @@
 // Test multiple values for the same option
 TEST(TestMultipleValues_SingleOption) {
   #define ARGS(F)                                                            \
-   F(config, c, "Config file", OPTION, {})                                   \
+   F(config, c, "Config file", SEPARATE, {})                                   \
    F(verbose, v, "Verbose mode", FLAG, {})
   
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
@@ -53,8 +53,8 @@ TEST(TestMultipleValues_SingleOption) {
 // Test multiple values with long option names
 TEST(TestMultipleValues_LongOption) {
   #define ARGS(F)                                                            \
-   F(input, i, "Input file", OPTION, {})                                     \
-   F(output, o, "Output file", OPTION, {})
+   F(input, i, "Input file", SEPARATE, {})                                     \
+   F(output, o, "Output file", SEPARATE, {})
   
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
   
@@ -126,9 +126,9 @@ TEST(TestMultipleValues_Flag) {
 // Test mixed usage - some options once, some multiple times
 TEST(TestMultipleValues_Mixed) {
   #define ARGS(F)                                                            \
-   F(host, H, "Host", OPTION, {})                                            \
-   F(port, p, "Port", OPTION, {"8080", "9090"})                              \
-   F(tag, t, "Tag", OPTION, {})                                              \
+   F(host, H, "Host", SEPARATE, {})                                            \
+   F(port, p, "Port", SEPARATE, {"8080", "9090"})                              \
+   F(tag, t, "Tag", SEPARATE, {})                                              \
    F(verbose, v, "Verbose", FLAG, {})
   
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
@@ -182,7 +182,7 @@ TEST(TestMultipleValues_Mixed) {
 // Test backward compatibility - GetArgValue still works as before
 TEST(TestMultipleValues_BackwardCompatibility) {
   #define ARGS(F)                                                            \
-   F(file, f, "File", OPTION, {})
+   F(file, f, "File", SEPARATE, {})
   
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
   

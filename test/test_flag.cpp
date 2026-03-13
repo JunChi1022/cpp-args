@@ -12,8 +12,8 @@ DEFINE_ARGS(FlagOption1, FlagTable1, TEST_FLAGS_ONLY)
 
 // Test with mixed options and flags - using unified DEFINE_ARGS macro
 #define TEST_MIXED(F)                                                          \
-  F(port2, p, "Server port number", OPTION, {})                                \
-  F(log_lvl2, l, "Logging verbosity", OPTION, {"debug", "info"})               \
+  F(port2, p, "Server port number", SEPARATE, {})                                \
+  F(log_lvl2, l, "Logging verbosity", SEPARATE, {"debug", "info"})               \
   F(help2, h, "print help info", FLAG, {})                                     \
   F(verbose2, v, "enable verbose mode", FLAG, {})
 

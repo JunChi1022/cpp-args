@@ -7,7 +7,7 @@
   V(include, I, "Include directory", SEPARATE_OR_JOINED, {})                   \
   V(library, L, "Library path", SEPARATE_OR_JOINED, {})                        \
   V(define, D, "Macro definition", SEPARATE_OR_JOINED, {})                     \
-  V(output, o, "Output file", OPTION, {})                                      \
+  V(output, o, "Output file", SEPARATE, {})                                      \
   V(verbose, v, "Verbose mode", FLAG, {})
 
 DEFINE_ARGS(TestOption, TestTable, TEST_OPTIONS)
