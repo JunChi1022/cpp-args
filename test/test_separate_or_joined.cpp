@@ -4,9 +4,9 @@
 #include <iostream>
 
 #define TEST_OPTIONS(V)                                                        \
-  V(include, I, "Include directory", SEPARATE_OR_JOINED, {})                   \
-  V(library, L, "Library path", SEPARATE_OR_JOINED, {})                        \
-  V(define, D, "Macro definition", SEPARATE_OR_JOINED, {})                     \
+  V(include, I, "Include directory", SEPARATE | JOINED, {})                   \
+  V(library, L, "Library path", SEPARATE | JOINED, {})                        \
+  V(define, D, "Macro definition", SEPARATE | JOINED, {})                     \
   V(output, o, "Output file", SEPARATE, {})                                      \
   V(verbose, v, "Verbose mode", FLAG, {})
 
@@ -174,7 +174,7 @@ void TestSeparateOrJoined_ComplexScenario() {
 }
 
 int main() {
-  std::cout << "Running Unit Tests for SEPARATE_OR_JOINED_KIND" << std::endl;
+  std::cout << "Running Unit Tests for SEPARATE | JOINED" << std::endl;
   std::cout << "================================================" << std::endl;
 
   TestSeparateOrJoined_SeparateForm();

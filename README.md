@@ -123,6 +123,22 @@ F(name, short_name, "help text", FLAG, {})
 F(name, short_name, "help text", JOINED, {allowed_values})
 ```
 
+**Combined Formats** (support both separate and joined):
+```cpp
+F(name, short_name, "help text", SEPARATE | JOINED, {allowed_values})
+```
+
+Parameters:
+- `name`: Option identifier (use underscores, e.g., `log_lvl`)
+- `short_name`: Single character short form (e.g., `p` for `-p`)
+- `help_text`: Description shown in help message
+- `SEPARATE`, `FLAG`, `JOINED`, or combination (using `|`): Kind identifier using bit flags
+  - `SEPARATE`: Space-separated (`-o value`) or equals-separated (`-o=value`)
+  - `JOINED`: Direct attachment (`-lcuda`, `--librarycuda`)
+  - `SEPARATE | JOINED`: Both formats supported
+  - `FLAG`: Boolean flag, no value
+- `allowed_values`: For SEPARATE/JOINED - list of valid values like `{"json", "xml"}`, use `{}` for any value
+
 ### Separate Options (Standard Command-line Flags)
 
 Most common option type for standard command-line interfaces. Supports both space-separated and equals-separated formats:
@@ -158,6 +174,37 @@ Usage examples:
 - Short option with equals: `-o=value`
 - Long option with equals: `--output=value`
 - All formats are interchangeable and can be mixed
+
+### Separate and Joined Options (Flexible Format Support)
+
+For maximum flexibility, you can combine SEPARATE and JOINED using bitwise OR:
+
+```cpp
+#define MY_ARGS(F) \
+  F(include, I, "Include path", SEPARATE | JOINED, {}) \
+  F(define, D, "Define macro", SEPARATE | JOINED, {})
+
+DEFINE_ARGS(App, AppTable, MY_ARGS)
+```
+
+This supports ALL formats:
+```bash
+# Space-separated (SEPARATE)
+./app -I /usr/include
+
+# Equals-separated (SEPARATE)
+./app -I=/usr/include
+./app --include=/usr/include
+
+# Direct attachment (JOINED)
+./app -I/usr/include
+./app --include/usr/include
+
+# All formats can be mixed
+./app -I/path1 -I=/path2 --include/path3
+```
+
+**Note**: This replaces the old `SEPARATE_OR_JOINED` kind. Now you simply use `SEPARATE | JOINED`.
 
 ### Joined Options (Compiler-style Flags)
 

@@ -6,7 +6,7 @@
 // Test options with different kinds
 #define TEST_OPTIONS(F)                                                        \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})         \
-  F(include, I, "Include directory", SEPARATE_OR_JOINED, {})                   \
+  F(include, I, "Include directory", SEPARATE | JOINED, {})                   \
   F(output, o, "Output file", SEPARATE, {})                                      \
   F(port, p, "Port number", SEPARATE, {})                                        \
   F(verbose, v, "Verbose mode", FLAG, {})

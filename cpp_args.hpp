@@ -20,18 +20,23 @@ struct Option {
   std::string help;
   std::set<std::string> allowed;
 
-  // Option kind:
-  // - SEPARATE requires a value (separate argument or with '=')
-  // - FLAG does not require a value
-  // - JOINED allows value to be joined with option name (short or long format)
-  // - SEPARATE_OR_JOINED allows both separate and joined value
-  enum Kind {
-    SEPARATE_KIND = 0,
-    FLAG_KIND = 1,
-    JOINED_KIND = 2,
-    SEPARATE_OR_JOINED_KIND = 3
+  // Option feature using bit flags (one-hot encoding):
+  // - SEPARATE: value separate from option (space or '=')
+  // - JOINED: value attached directly to option name
+  // - FLAG: no value required
+  // Can be combined: SEPARATE | JOINED = both formats supported
+  enum Feature {
+    FEAT_SEPARATE = 1,      // Bit 0: separate format support
+    FEAT_FLAG = 2,          // Bit 1: flag (no value)
+    FEAT_JOINED = 4         // Bit 2: joined format support
   };
-  Kind kind;
+  
+  int feature;  // Changed to int to support bit combinations
+  
+  // Helper to check if feature has specific flag
+  bool hasFeature(int flag) const {
+    return (feature & flag) != 0;
+  }
 
   // Group ID for grouping options in help output
   int groupId;
@@ -99,6 +104,19 @@ public:
           // Use '=' to split: -I=value
           shortName = arg.substr(1, eqPos - 1);
           value = arg.substr(eqPos + 1);
+
+          opt = FindOptionByShortName(shortName);
+          if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
+            // Validate value if allowed values are specified
+            if (!opt->allowed.empty() &&
+                opt->allowed.find(value) == opt->allowed.end()) {
+              std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                        << std::endl;
+              return false;
+            }
+            parsedArgs[opt->id].push_back(value);
+            continue;
+          }
         } else {
           // No '=', take everything after short name: -Ivalue
           value = arg.substr(2);
@@ -106,9 +124,7 @@ public:
 
         opt = FindOptionByShortName(shortName);
 
-        if (opt && (opt->kind == Option::JOINED_KIND ||
-                    opt->kind == Option::SEPARATE_OR_JOINED_KIND ||
-                    opt->kind == Option::SEPARATE_KIND)) {
+        if (opt && opt->hasFeature(Option::FEAT_JOINED)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -129,9 +145,8 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByLongName(longName);
 
-        // JOINED kind doesn't support long format with '=', only SEPARATE_OR_JOINED and SEPARATE
-        if (opt && (opt->kind == Option::SEPARATE_OR_JOINED_KIND ||
-                    opt->kind == Option::SEPARATE_KIND)) {
+        // SEPARATE supports long format with '='
+        if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -151,7 +166,7 @@ public:
         opt = FindOptionByLongName(longName);
 
         // Found exact match but it's JOINED kind without value
-        if (opt && opt->kind == Option::JOINED_KIND) {
+        if (opt && opt->hasFeature(Option::FEAT_JOINED)) {
           std::cerr << "Error: Missing value for " << arg << std::endl;
           return false;
         }
@@ -161,7 +176,7 @@ public:
         // the value
         if (!opt) {
           for (const auto &option : optionTable) {
-            if (option.kind == Option::JOINED_KIND) {
+            if (option.feature == Option::FEAT_JOINED) {
               std::string expectedPrefix = "--" + option.longName;
               if (arg.find(expectedPrefix) == 0 &&
                   arg.size() > expectedPrefix.size()) {
@@ -193,8 +208,7 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByShortName(shortName);
 
-        if (opt && (opt->kind == Option::SEPARATE_KIND ||
-                    opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
+        if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -214,8 +228,8 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByLongName(longName);
 
-        if (opt && (opt->kind == Option::SEPARATE_KIND ||
-                    opt->kind == Option::SEPARATE_OR_JOINED_KIND)) {
+        // SEPARATE kind supports long format with '='
+        if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -245,13 +259,17 @@ public:
       }
 
       // If it's a flag, just mark it as present
-      if (opt->kind == Option::FLAG_KIND) {
-        parsedArgs[opt->id].push_back("");
+      if (opt->hasFeature(Option::FEAT_FLAG)) {
+        parsedArgs[opt->id].push_back(""); // Empty value for flags
         continue;
       }
 
-      // For non-flag options, require a value
-      if (i + 1 < argc) {
+      // Try to get next argument as value (for SEPARATE)
+      if (opt->hasFeature(Option::FEAT_SEPARATE)) {
+        if (i + 1 >= argc) {
+          std::cerr << "Error: Missing value for " << arg << std::endl;
+          return false;
+        }
         std::string value = argv[++i];
         if (!opt->allowed.empty() &&
             opt->allowed.find(value) == opt->allowed.end()) {
@@ -474,9 +492,9 @@ private:
       }
       std::cout << "]";
     }
-    if (opt->kind == Option::FLAG_KIND) {
+    if (opt->feature == Option::FEAT_FLAG) {
       std::cout << " [flag]";
-    } else if (opt->kind == Option::JOINED_KIND) {
+    } else if (opt->feature == Option::FEAT_JOINED) {
       std::cout << " [joined]";
     }
     std::cout << std::endl;
@@ -575,23 +593,22 @@ private:
  * @brief X-Macros for unified argument definition.
  *
  * Usage format:
- * - For options: F(name, short_name, help_text, OPTION, {allowed_values})
- * - For flags: F(name, short_name, help_text, FLAG, {}) - empty allowed values
- * ignored
+ * - For separate options: F(name, short_name, help_text, SEPARATE,
+ * {allowed_values}) Supports space-separated (-o value) and equals-separated
+ * (-o=value) formats
+ * - For flags: F(name, short_name, help_text, FLAG, {}) - no value required
  * - For joined options: F(name, short_name, help_text, JOINED,
- * {allowed_values}) Joined options allow value to be attached directly (e.g.,
- * -lcuda, --library=cuda)
- * - For separate or joined options: F(name, short_name, help_text,
- * SEPARATE_OR_JOINED, {allowed_values}) Allows both separate argument (e.g.,
- * -I /usr/include) and joined value (e.g., -I/usr/include)
+ * {allowed_values}) Value attached directly (-lcuda, --librarycuda)
+ * - For both separate and joined: F(name, short_name, help_text, SEPARATE |
+ * JOINED, {allowed_values}) Supports all formats: space, equals, and direct
+ * attachment
  */
 
-// Kind identifiers for macro usage
-#define OPTION Option::SEPARATE_KIND
-#define SEPARATE Option::SEPARATE_KIND
-#define FLAG Option::FLAG_KIND
-#define JOINED Option::JOINED_KIND
-#define SEPARATE_OR_JOINED Option::SEPARATE_OR_JOINED_KIND
+// Kind identifiers for macro usage (using bit flags)
+#define SEPARATE ::Option::FEAT_SEPARATE
+#define FLAG ::Option::FEAT_FLAG
+#define JOINED ::Option::FEAT_JOINED
+// SEPARATE_OR_JOINED is now: SEPARATE | JOINED
 
 // GENERATE_ENUM takes kind and optional allowed values (ignored for enum
 // generation)
@@ -608,7 +625,7 @@ private:
          #sh,                                                                  \
          help,                                                                 \
          MAKE_ALLOWED(__VA_ARGS__),                                            \
-         static_cast<Option::Kind>(kind),                                      \
+         kind,                                      \
          -1},
 
 /**
@@ -670,7 +687,7 @@ private:
          #sh,                                                                  \
          help,                                                                 \
          __VA_ARGS__,                                                          \
-         static_cast<Option::Kind>(kind),                                      \
+         kind,                                      \
          GRP_##group},
 
 #define GENERATE_GROUP_ENUM(name, display) GRP_##name,
