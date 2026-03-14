@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <ostream>
 #include <set>
 #include <sstream>
 #include <string>
@@ -27,10 +28,10 @@ struct Option {
   // - FLAG: no value required
   // Can be combined: SEPARATE | JOINED = both formats supported
   enum Feature {
-    FEAT_SEPARATE = 1,  // Bit 0: separate format support
-    FEAT_FLAG = 2,      // Bit 1: flag (no value)
-    FEAT_JOINED = 4,    // Bit 2: joined format support
-    FEAT_HIDDEN = 8     // Bit 3: Hidden option (will not be printed in help)
+    FEAT_SEPARATE = 1, // Bit 0: separate format support
+    FEAT_FLAG = 2,     // Bit 1: flag (no value)
+    FEAT_JOINED = 4,   // Bit 2: joined format support
+    FEAT_HIDDEN = 8    // Bit 3: Hidden option (will not be printed in help)
   };
 
   int feature; // Changed to int to support bit combinations
@@ -59,6 +60,23 @@ struct OptionGroup {
 
 using OptionGroupTable = std::vector<OptionGroup>;
 
+/**
+ * @brief Alias mapping: maps alias names to option IDs
+ */
+struct AliasEntry {
+  std::string aliasName;      // The long alias name (e.g., "save_temps")
+  std::string shortAliasName; // The short alias name (e.g., "st"), can be empty
+  std::string optionName; // The actual option name it maps to (e.g., "keep")
+};
+
+using AliasTable = std::vector<AliasEntry>;
+
+/**
+ * @brief Alias lookup map for efficient runtime lookup
+ * Maps normalized alias name -> option name
+ */
+using AliasMap = std::map<std::string, std::string>;
+
 class ArgumentParser {
 public:
   explicit ArgumentParser(const OptionTable &table)
@@ -71,6 +89,27 @@ public:
    */
   ArgumentParser(const OptionTable &table, const OptionGroupTable &groups)
       : optionTable(table), optionGroups(groups), allowUnknown(false) {}
+
+  /**
+   * @brief Set alias table for option name aliases
+   * @param aliasTable The alias table mapping alias names to option IDs
+   */
+  void SetAliasTable(const AliasTable &aliasTable) {
+    this->aliasTable = aliasTable;
+
+    // Build lookup map for efficient runtime lookup
+    aliasMap.clear();
+    for (const auto &alias : aliasTable) {
+      // Map long alias name (normalized)
+      std::string normLongAlias = Option::Normalize(alias.aliasName);
+      aliasMap[normLongAlias] = alias.optionName;
+
+      // Map short alias name if present
+      if (!alias.shortAliasName.empty()) {
+        aliasMap[alias.shortAliasName] = alias.optionName;
+      }
+    }
+  }
 
   /**
    * @brief Fuzzy parsing: treats "_" and "-" as identical.
@@ -143,7 +182,15 @@ public:
         size_t eqPos = arg.find('=');
         std::string longName = arg.substr(2, eqPos - 2);
         std::string value = arg.substr(eqPos + 1);
+
+        // Try to find by long name first (without alias)
         opt = FindOptionByLongName(longName);
+
+        // If not found, try alias lookup
+        if (!opt) {
+          std::string fullArg = "--" + longName;
+          opt = FindOption(fullArg);
+        }
 
         // SEPARATE supports long format with '='
         if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
@@ -191,6 +238,61 @@ public:
                 parsedArgs[option.id].push_back(value);
                 opt = &option;
                 break;
+              }
+            }
+          }
+        }
+
+        // If still not found, try alias names for JOINED options
+        if (!opt && !aliasTable.empty()) {
+          for (const auto &alias : aliasTable) {
+            // Find the option this alias maps to
+            std::string normOptionName = Option::Normalize(alias.optionName);
+            const Option *targetOpt = nullptr;
+            for (const auto &opt : optionTable) {
+              if (Option::Normalize(opt.longName) == normOptionName ||
+                  opt.shortName == normOptionName) {
+                targetOpt = &opt;
+                break;
+              }
+            }
+
+            if (targetOpt && targetOpt->feature == Option::FEAT_JOINED) {
+              // Try long alias
+              std::string expectedPrefix = "--" + alias.aliasName;
+              if (arg.find(expectedPrefix) == 0 &&
+                  arg.size() > expectedPrefix.size()) {
+                std::string value = arg.substr(expectedPrefix.size());
+                // Validate value if allowed values are specified
+                if (!targetOpt->allowed.empty() &&
+                    targetOpt->allowed.find(value) ==
+                        targetOpt->allowed.end()) {
+                  std::cerr << "Error: Invalid value '" << value << "' for "
+                            << arg << std::endl;
+                  return false;
+                }
+                parsedArgs[targetOpt->id].push_back(value);
+                opt = targetOpt;
+                break;
+              }
+
+              // Try short alias
+              if (!alias.shortAliasName.empty()) {
+                std::string shortPrefix = "-" + alias.shortAliasName;
+                if (arg.find(shortPrefix) == 0 &&
+                    arg.size() > shortPrefix.size()) {
+                  std::string value = arg.substr(shortPrefix.size());
+                  if (!targetOpt->allowed.empty() &&
+                      targetOpt->allowed.find(value) ==
+                          targetOpt->allowed.end()) {
+                    std::cerr << "Error: Invalid value '" << value << "' for "
+                              << arg << std::endl;
+                    return false;
+                  }
+                  parsedArgs[targetOpt->id].push_back(value);
+                  opt = targetOpt;
+                  break;
+                }
               }
             }
           }
@@ -508,8 +610,9 @@ private:
     std::cout << std::left << std::setw(wrappedWidth - 30) << brief;
 
     if (!opt->shortName.empty()) {
-      std::cout << "(-" << opt->shortName << ")" << std::endl;
+      std::cout << "(-" << opt->shortName << ")";
     }
+    std::cout << std::endl;
 
     std::istringstream iss(opt->help);
     std::string word;
@@ -530,6 +633,20 @@ private:
     }
     if (!line.empty()) {
       std::cout << "    " << line << std::endl;
+    }
+
+    // print alias
+    for (const auto &it : aliasTable) {
+      if (it.optionName == opt->longName) {
+        std::cout << std::left << std::setw(wrappedWidth - 30)
+                  << ("--" + it.aliasName);
+        if (!it.shortAliasName.empty()) {
+          std::cout << "(-" << it.shortAliasName << ")";
+        }
+        std::cout << std::endl;
+        std::cout << "    Alias for " << "--"
+                  << Option::Normalize(opt->longName) << std::endl;
+      }
     }
   }
 
@@ -552,6 +669,19 @@ private:
       if (opt.shortName == normInput)
         return &opt;
     }
+
+    // If not found, check alias map (efficient O(log n) lookup)
+    auto it = aliasMap.find(normInput);
+    if (it != aliasMap.end()) {
+      std::string normOptionName = Option::Normalize(it->second);
+      for (const auto &opt : optionTable) {
+        if (Option::Normalize(opt.longName) == normOptionName ||
+            opt.shortName == normOptionName) {
+          return &opt;
+        }
+      }
+    }
+
     return nullptr;
   }
 
@@ -560,6 +690,19 @@ private:
       if (opt.shortName == shortName)
         return &opt;
     }
+
+    // Check alias map (efficient O(log n) lookup)
+    auto it = aliasMap.find(shortName);
+    if (it != aliasMap.end()) {
+      std::string normOptionName = Option::Normalize(it->second);
+      for (const auto &opt : optionTable) {
+        if (Option::Normalize(opt.longName) == normOptionName ||
+            opt.shortName == normOptionName) {
+          return &opt;
+        }
+      }
+    }
+
     return nullptr;
   }
 
@@ -569,6 +712,19 @@ private:
       if (Option::Normalize(opt.longName) == normName)
         return &opt;
     }
+
+    // Check alias map (efficient O(log n) lookup)
+    auto it = aliasMap.find(normName);
+    if (it != aliasMap.end()) {
+      std::string normOptionName = Option::Normalize(it->second);
+      for (const auto &opt : optionTable) {
+        if (Option::Normalize(opt.longName) == normOptionName ||
+            opt.shortName == normOptionName) {
+          return &opt;
+        }
+      }
+    }
+
     return nullptr;
   }
 
@@ -615,6 +771,9 @@ private:
 
   OptionTable optionTable;
   OptionGroupTable optionGroups;
+  AliasTable aliasTable; // Alias table for option name aliases (for
+                         // help/introspection)
+  AliasMap aliasMap;     // Alias lookup map for O(log n) runtime lookup
   std::map<int, std::vector<std::string>>
       parsedArgs;                  // Support multiple values per option
   std::vector<std::string> inputs; // Positional inputs (non-option arguments)
@@ -683,6 +842,39 @@ private:
                                      InitList_##TableName +                    \
                                          sizeof(InitList_##TableName) /        \
                                              sizeof(InitList_##TableName[0]));
+
+/**
+ * @brief Macro for defining alias table
+ * @param AliasTableName Name of the alias table to generate (e.g., AliasTable)
+ * @param AliasMacro Macro that defines all aliases with format:
+ *                   A(alias_name, short_alias, option_name)
+ *
+ * Usage example:
+ *    #define ALIAS_OPTION(A)                                                  \
+ *       A(save_temps, st, keep)                                               \
+ *       A(verbose, v, print_log)                                              \
+ *       A(helpme, , help)  // Empty short alias becomes empty string          \
+ *    DEFINE_ALIAS(AliasTable, ALIAS_OPTION)
+ *
+ * Then use: parser.SetAliasTable(AliasTable);
+ */
+
+// Generate enum for alias options
+#define GENERATE_ALIAS_ENUM(alias, short_alias, option) ALIAS_##alias,
+
+// Generate alias table entries - directly stringify all parameters
+// Empty parameters will become empty strings automatically
+#define GENERATE_ALIAS_ENTRY(alias, short_alias, option)                       \
+  AliasEntry{#alias, #short_alias, #option},
+
+#define DEFINE_ALIAS(AliasTableName, AliasMacro)                               \
+  enum { AliasMacro(GENERATE_ALIAS_ENUM) ALIAS_COUNT };                        \
+  const AliasEntry InitList_##AliasTableName[] = {                             \
+      AliasMacro(GENERATE_ALIAS_ENTRY)};                                       \
+  static const AliasTable AliasTableName(                                      \
+      InitList_##AliasTableName,                                               \
+      InitList_##AliasTableName + sizeof(InitList_##AliasTableName) /          \
+                                      sizeof(InitList_##AliasTableName[0]));
 
 /**
  * @brief Unified macro for defining all arguments with groups

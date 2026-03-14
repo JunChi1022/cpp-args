@@ -15,6 +15,7 @@ A lightweight, header-only command-line argument parser for C++
 - **X-Macros** - Clean, maintainable option definitions using X-Macro pattern
 - **Unified syntax** - Define options and flags together with a single macro
 - **Option Groups** - Organize options into logical groups with grouped help display
+- **Option Aliases** - Support multiple names for the same option (e.g., `--helpme` → `--help`)
 
 ## Quick Start
 
