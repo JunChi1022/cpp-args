@@ -301,18 +301,23 @@ int main(int argc, char* argv[]) {
 
 Output:
 ```
-Usage Options:
 Server Options:
-  --host, -H               Server hostname
-  --port, -p               Server port [Values: 8080|9090]
+--host                                                                (-H)
+    Server hostname
+--port [Values: 8080|9090]                                            (-p)
+    Server port
 
 Database Options:
-  --db, -d                 Database type [Values: mysql|postgres]
-  --connection, -c         Connection string
+--db [Values: mysql|postgres]                                         (-d)
+    Database type
+--connection                                                          (-c)
+    Connection string
 
 General Options:
-  --verbose, -v            Verbose mode [flag]
-  --help, -h               Print help [flag]
+--verbose [flag]                                                      (-v)
+    Verbose mode
+--help [flag]                                                         (-h)
+    Print help
 ```
 
 ### Macro Structure for Groups

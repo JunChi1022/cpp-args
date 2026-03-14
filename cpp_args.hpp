@@ -7,6 +7,7 @@
 #include <limits>
 #include <map>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -26,17 +27,15 @@ struct Option {
   // - FLAG: no value required
   // Can be combined: SEPARATE | JOINED = both formats supported
   enum Feature {
-    FEAT_SEPARATE = 1,      // Bit 0: separate format support
-    FEAT_FLAG = 2,          // Bit 1: flag (no value)
-    FEAT_JOINED = 4         // Bit 2: joined format support
+    FEAT_SEPARATE = 1, // Bit 0: separate format support
+    FEAT_FLAG = 2,     // Bit 1: flag (no value)
+    FEAT_JOINED = 4    // Bit 2: joined format support
   };
-  
-  int feature;  // Changed to int to support bit combinations
-  
+
+  int feature; // Changed to int to support bit combinations
+
   // Helper to check if feature has specific flag
-  bool hasFeature(int flag) const {
-    return (feature & flag) != 0;
-  }
+  bool hasFeature(int flag) const { return (feature & flag) != 0; }
 
   // Group ID for grouping options in help output
   int groupId;
@@ -416,9 +415,7 @@ public:
     return -1;
   }
 
-  void PrintHelp() const {
-    std::cout << "Usage Options:" << std::endl;
-
+  virtual void PrintHelp() const {
     // Check if we have groups defined
     if (optionGroups.empty()) {
       // Print all options without grouping
@@ -479,25 +476,55 @@ public:
   }
 
 private:
-  void printOption(const Option *opt) const {
-    std::string names = "--" + Option::Normalize(opt->longName);
-    if (!opt->shortName.empty())
-      names += ", -" + opt->shortName;
+  virtual void printOption(const Option *opt, int wrappedWidth = 100) const {
+    // brief = longName [kind] [allow values]
+    std::string brief = "--" + Option::Normalize(opt->longName);
 
-    std::cout << "  " << std::left << std::setw(25) << names << opt->help;
-    if (!opt->allowed.empty()) {
-      std::cout << " [Values: ";
-      for (auto it = opt->allowed.begin(); it != opt->allowed.end(); ++it) {
-        std::cout << (it == opt->allowed.begin() ? "" : "|") << *it;
-      }
-      std::cout << "]";
-    }
     if (opt->feature == Option::FEAT_FLAG) {
-      std::cout << " [flag]";
+      brief += " [flag]";
     } else if (opt->feature == Option::FEAT_JOINED) {
-      std::cout << " [joined]";
+      brief += " [joined]";
     }
-    std::cout << std::endl;
+
+    if (!opt->allowed.empty()) {
+      brief += " [Values: ";
+      for (auto it = opt->allowed.begin(); it != opt->allowed.end(); ++it) {
+        if (brief.size() >= wrappedWidth / 2) {
+          brief += "|...";
+          break;
+        }
+        brief += (it == opt->allowed.begin() ? "" : "|");
+        brief += *it;
+      }
+      brief += "]";
+    }
+
+    std::cout << std::left << std::setw(wrappedWidth - 30) << brief;
+
+    if (!opt->shortName.empty()) {
+      std::cout << "(-" << opt->shortName << ")" << std::endl;
+    }
+
+    std::istringstream iss(opt->help);
+    std::string word;
+    std::string line;
+
+    while (iss >> word) {
+      if (!line.empty() && line.length() + 1 + word.length() >
+                               static_cast<size_t>(wrappedWidth - 4)) {
+        std::cout << "    " << line << std::endl;
+        line = word;
+      } else {
+        if (line.empty()) {
+          line = word;
+        } else {
+          line += " " + word;
+        }
+      }
+    }
+    if (!line.empty()) {
+      std::cout << "    " << line << std::endl;
+    }
   }
 
   const Option *FindOption(const std::string &input) const {
@@ -620,13 +647,8 @@ private:
 #define MAKE_ALLOWED(...) __VA_ARGS__
 
 #define GENERATE_TABLE(name, sh, help, kind, ...)                              \
-  Option{(int)OPT_##name,                                                      \
-         #name,                                                                \
-         #sh,                                                                  \
-         help,                                                                 \
-         MAKE_ALLOWED(__VA_ARGS__),                                            \
-         kind,                                      \
-         -1},
+  Option{(int)OPT_##name,           #name, #sh, help,                          \
+         MAKE_ALLOWED(__VA_ARGS__), kind,  -1},
 
 /**
  * @brief Unified macro for defining all arguments in a single macro
@@ -682,13 +704,7 @@ private:
 #define GENERATE_ENUM_WITH_GROUP(group, name, sh, help, kind, ...) OPT_##name,
 
 #define GENERATE_TABLE_WITH_GROUP(group, name, sh, help, kind, ...)            \
-  Option{(int)OPT_##name,                                                      \
-         #name,                                                                \
-         #sh,                                                                  \
-         help,                                                                 \
-         __VA_ARGS__,                                                          \
-         kind,                                      \
-         GRP_##group},
+  Option{(int)OPT_##name, #name, #sh, help, __VA_ARGS__, kind, GRP_##group},
 
 #define GENERATE_GROUP_ENUM(name, display) GRP_##name,
 #define GENERATE_GROUP_INFO(name, display) {GRP_##name, display},
