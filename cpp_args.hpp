@@ -27,9 +27,10 @@ struct Option {
   // - FLAG: no value required
   // Can be combined: SEPARATE | JOINED = both formats supported
   enum Feature {
-    FEAT_SEPARATE = 1, // Bit 0: separate format support
-    FEAT_FLAG = 2,     // Bit 1: flag (no value)
-    FEAT_JOINED = 4    // Bit 2: joined format support
+    FEAT_SEPARATE = 1,  // Bit 0: separate format support
+    FEAT_FLAG = 2,      // Bit 1: flag (no value)
+    FEAT_JOINED = 4,    // Bit 2: joined format support
+    FEAT_HIDDEN = 8     // Bit 3: Hidden option (will not be printed in help)
   };
 
   int feature; // Changed to int to support bit combinations
@@ -415,12 +416,12 @@ public:
     return -1;
   }
 
-  virtual void PrintHelp() const {
+  virtual void PrintHelp(int wrappedWidth = 100) const {
     // Check if we have groups defined
     if (optionGroups.empty()) {
       // Print all options without grouping
       for (const auto &opt : optionTable) {
-        printOption(&opt);
+        printOption(&opt, wrappedWidth);
       }
     } else {
       // Group options by groupId
@@ -444,7 +445,7 @@ public:
       // Print ungrouped options first
       bool hasUngrouped = !ungroupedOptions.empty();
       for (const auto *opt : ungroupedOptions) {
-        printOption(opt);
+        printOption(opt, wrappedWidth);
       }
 
       // Print grouped options
@@ -466,10 +467,11 @@ public:
         // Print group header if we have a group name
         if (!optionGroups[groupId].name.empty()) {
           std::cout << optionGroups[groupId].name << ":" << std::endl;
+          std::cout << std::string(wrappedWidth, '=') << std::endl;
         }
 
         for (const auto *opt : options) {
-          printOption(opt);
+          printOption(opt, wrappedWidth);
         }
       }
     }
@@ -477,6 +479,10 @@ public:
 
 private:
   virtual void printOption(const Option *opt, int wrappedWidth = 100) const {
+    if (opt->hasFeature(Option::FEAT_HIDDEN)) {
+      return;
+    }
+
     // brief = longName [kind] [allow values]
     std::string brief = "--" + Option::Normalize(opt->longName);
 
@@ -635,6 +641,7 @@ private:
 #define SEPARATE ::Option::FEAT_SEPARATE
 #define FLAG ::Option::FEAT_FLAG
 #define JOINED ::Option::FEAT_JOINED
+#define HIDDEN ::Option::FEAT_HIDDEN
 // SEPARATE_OR_JOINED is now: SEPARATE | JOINED
 
 // GENERATE_ENUM takes kind and optional allowed values (ignored for enum
