@@ -28,12 +28,14 @@ struct Option {
   // - SEPARATE: value separate from option (space or '=')
   // - JOINED: value attached directly to option name
   // - FLAG: no value required
+  // - SHORT: long option can be used with single dash (e.g., -help)
   // Can be combined: SEPARATE | JOINED = both formats supported
   enum Feature {
     FEAT_SEPARATE = 1, // Bit 0: separate format support
     FEAT_FLAG = 2,     // Bit 1: flag (no value)
     FEAT_JOINED = 4,   // Bit 2: joined format support
-    FEAT_HIDDEN = 8    // Bit 3: Hidden option (will not be printed in help)
+    FEAT_HIDDEN = 8,   // Bit 3: Hidden option (will not be printed in help)
+    FEAT_SHORT = 16    // Bit 4: Long option also accepts single dash (e.g., -help)
   };
 
   int feature; // Changed to int to support bit combinations
@@ -142,10 +144,11 @@ public:
         // Check if there's an '=' to split on
         size_t eqPos = arg.find('=');
         if (eqPos != std::string::npos && eqPos > 1) {
-          // Use '=' to split: -I=value
+          // Use '=' to split: -I=value or -help=value
           shortName = arg.substr(1, eqPos - 1);
           value = arg.substr(eqPos + 1);
 
+          // First try short name lookup
           opt = FindOptionByShortName(shortName);
           if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
             // Validate value if allowed values are specified
@@ -157,6 +160,23 @@ public:
             }
             parsedArgs[opt->id].push_back(value);
             continue;
+          }
+          
+          // If not found as short name, check if it matches a FEAT_SHORT long option
+          if (!opt) {
+            std::string longOptName = arg.substr(1, eqPos - 1);
+            // Try FindOption which handles FEAT_SHORT with single dash
+            opt = FindOption("-" + longOptName);
+            if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
+              if (!opt->allowed.empty() &&
+                  opt->allowed.find(value) == opt->allowed.end()) {
+                std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                          << std::endl;
+                return false;
+              }
+              parsedArgs[opt->id].push_back(value);
+              continue;
+            }
           }
         } else {
           // No '=', take everything after short name: -Ivalue
@@ -326,11 +346,23 @@ public:
       }
 
       // For regular OPTION kind with long name, try to extract value with '='
-      if (!opt && arg.find('=') != std::string::npos && arg.find("--") == 0) {
+      // Support both --option=value and -option=value (for FEAT_SHORT options)
+      if (!opt && arg.find('=') != std::string::npos && 
+          (arg.find("--") == 0 || arg.find("-") == 0)) {
         size_t eqPos = arg.find('=');
-        std::string longName = arg.substr(2, eqPos - 2);
+        std::string prefix = arg.substr(0, 2);
+        std::string namePart;
         std::string value = arg.substr(eqPos + 1);
-        opt = FindOptionByLongName(longName);
+        
+        if (prefix == "--") {
+          // Standard long format: --option=value
+          namePart = arg.substr(2, eqPos - 2);
+          opt = FindOptionByLongName(namePart);
+        } else {
+          // Single dash format: -option=value (for FEAT_SHORT options)
+          namePart = arg.substr(1, eqPos - 1);
+          opt = FindOption(arg); // Use FindOption which handles FEAT_SHORT
+        }
 
         // SEPARATE kind supports long format with '='
         if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
@@ -588,7 +620,13 @@ private:
     }
 
     // brief = longName [kind] [allow values]
-    std::string brief = "--" + Option::Normalize(opt->longName);
+    // For FEAT_SHORT options, show both --option and -option formats
+    std::string brief;
+    if (opt->hasFeature(Option::FEAT_SHORT)) {
+      brief = "-/" + Option::Normalize(opt->longName);
+    } else {
+      brief = "--" + Option::Normalize(opt->longName);
+    }
 
     if (opt->feature == Option::FEAT_FLAG) {
       brief += " [flag]";
@@ -658,10 +696,13 @@ private:
 
     // Strip prefix (-- or -) and normalize the input
     std::string cleanInput = input;
+    bool isSingleDash = false;
     if (cleanInput.find("--") == 0)
       cleanInput = cleanInput.substr(2);
-    else if (cleanInput.find("-") == 0)
+    else if (cleanInput.find("-") == 0) {
       cleanInput = cleanInput.substr(1);
+      isSingleDash = true;
+    }
     std::string normInput = Option::Normalize(cleanInput);
 
     for (const auto &opt : optionTable) {
@@ -670,6 +711,13 @@ private:
         return &opt;
       if (opt.shortName == normInput)
         return &opt;
+      
+      // For single-dash input, check if option has FEAT_SHORT flag
+      // This allows long options to be used with single dash (e.g., -help)
+      if (isSingleDash && opt.hasFeature(Option::FEAT_SHORT) &&
+          Option::Normalize(opt.longName) == normInput) {
+        return &opt;
+      }
     }
 
     // If not found, check alias map (efficient O(log n) lookup)
@@ -803,7 +851,7 @@ private:
 #define FLAG ::Option::FEAT_FLAG
 #define JOINED ::Option::FEAT_JOINED
 #define HIDDEN ::Option::FEAT_HIDDEN
-// SEPARATE_OR_JOINED is now: SEPARATE | JOINED
+#define SHORT Option::FEAT_SHORT
 
 // GENERATE_ENUM takes kind and optional allowed values (ignored for enum
 // generation)
