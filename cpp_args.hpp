@@ -476,7 +476,7 @@ private:
     // For FEAT_SHORT options, show both --option and -option formats
     std::string brief;
     if (opt->HasFeature(Option::FEAT_SHORT)) {
-      brief = "-/" + Option::Normalize(opt->longName);
+      brief = "-" + Option::Normalize(opt->longName);
     } else {
       brief = "--" + Option::Normalize(opt->longName);
     }
