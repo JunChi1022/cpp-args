@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 // Test with flags only - using unified DEFINE_ARGS macro
 #define TEST_FLAGS_ONLY(F)                                                     \
   F(help, h, "print help info", FLAG, {})                                      \

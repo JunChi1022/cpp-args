@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 // Test with mixed options for input parsing
 #define TEST_INPUT_ARGS(F)                                                     \
   F(output, o, "Output file", SEPARATE, {})                                      \

@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 // Test basic alias functionality
 void TestBasicAlias() {
   #define TEST_ALIAS_OPTIONS(A) \

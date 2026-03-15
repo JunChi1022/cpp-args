@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 // Test options with different kinds
 #define TEST_OPTIONS(F)                                                        \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})         \

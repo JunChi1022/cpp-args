@@ -25,6 +25,8 @@ A lightweight, header-only command-line argument parser for C++
 #include "cpp_args.hpp"
 #include <iostream>
 
+using namespace cppargs;
+
 // Define all arguments in one place - mix options and flags freely
 #define MY_APP_ARGS(F)                                                         \
   F(host, H, "Server hostname", SEPARATE, {})                                  \

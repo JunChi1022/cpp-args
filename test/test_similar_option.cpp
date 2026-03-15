@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 #define TEST(name) void name()
 #define RUN_TEST(name)                                                         \
   do {                                                                         \

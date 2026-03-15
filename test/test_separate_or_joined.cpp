@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 #define TEST_OPTIONS(V)                                                        \
   V(include, I, "Include directory", SEPARATE | JOINED, {})                   \
   V(library, L, "Library path", SEPARATE | JOINED, {})                        \

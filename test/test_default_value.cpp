@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 #define TEST_OPTIONS(V)                                                        \
   V(port, p, "Server port number", SEPARATE, {})                                 \
   V(log_lvl, l, "Logging verbosity", SEPARATE, {"debug", "info"})                \

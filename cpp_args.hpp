@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+namespace cppargs {
+
 /**
  * @brief Option metadata.
  */
@@ -928,5 +930,7 @@ private:
       GroupList_##TableName,                                                   \
       GroupList_##TableName +                                                  \
           sizeof(GroupList_##TableName) / sizeof(GroupList_##TableName[0]));
+
+} // namespace cppargs
 
 #endif

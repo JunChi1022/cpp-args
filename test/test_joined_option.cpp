@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace cppargs;
+
 // Test with joined options - like compiler flags
 #define TEST_JOINED_OPTIONS(F)                                                 \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})         \
