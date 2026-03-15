@@ -6,10 +6,10 @@
 using namespace cppargs;
 
 #define TEST_OPTIONS(V)                                                        \
-  V(include, I, "Include directory", SEPARATE | JOINED, {})                   \
-  V(library, L, "Library path", SEPARATE | JOINED, {})                        \
-  V(define, D, "Macro definition", SEPARATE | JOINED, {})                     \
-  V(output, o, "Output file", SEPARATE, {})                                      \
+  V(include, I, "Include directory", SEPARATE | EQ_JOIN | JOINED, {})                   \
+  V(library, L, "Library path", SEPARATE | EQ_JOIN | JOINED, {})                        \
+  V(define, D, "Macro definition", SEPARATE | EQ_JOIN | JOINED, {})                     \
+  V(output, o, "Output file", SEPARATE | EQ_JOIN, {})                                      \
   V(verbose, v, "Verbose mode", FLAG, {})
 
 DEFINE_ARGS(TestOption, TestTable, TEST_OPTIONS)

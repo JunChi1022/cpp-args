@@ -9,7 +9,11 @@ A lightweight, header-only command-line argument parser for C++
 - **Short & long options** - Support for both `-p` and `--port` style arguments
 - **Flag support** - Boolean flags that don't require values (e.g., `--help`, `-v`)
 - **Value validation** - Define allowed values for specific arguments
-- **Joined options** - Support attached values like `-lcuda` or `--librarycuda` (short and long options)
+- **Multiple format support** - Flexible option formats:
+  - Space-separated: `-I /usr/include`
+  - Equals-separated: `-I=/usr/include`
+  - Direct attachment: `-lcuda`, `--librarycuda`
+  - Combine formats with bit flags: `SEPARATE | EQ_JOIN | JOINED`
 - **Positional inputs** - Non-option arguments are preserved as positional inputs
 - **Unknown option handling** - Configurable handling of unknown options with retrieval API
 - **X-Macros** - Clean, maintainable option definitions using X-Macro pattern
@@ -34,6 +38,8 @@ using namespace cppargs;
   F(library, L, "Link library", JOINED, {"cuda", "stdc++"})                    \
   F(verbose, v, "Enable verbose mode", FLAG, {})                               \
   F(help, h, "Print help message", FLAG, {})
+// Note: SEPARATE options support space-separated format only (--host localhost).
+// For equals-separated format support (--host=localhost), use SEPARATE | EQ_JOIN.
 
 DEFINE_ARGS(MyApp, MyAppTable, MY_APP_ARGS)
 
@@ -135,16 +141,21 @@ Parameters:
 - `name`: Option identifier (use underscores, e.g., `log_lvl`)
 - `short_name`: Single character short form (e.g., `p` for `-p`)
 - `help_text`: Description shown in help message
-- `SEPARATE`, `FLAG`, `JOINED`, or combination (using `|`): Kind identifier using bit flags
-  - `SEPARATE`: Space-separated (`-o value`) or equals-separated (`-o=value`)
+- Kind identifier using bit flags (can be combined with `|`):
+  - `SEPARATE`: Space-separated format only (`-o value`, `--option value`)
+  - `EQ_JOIN`: Equals-separated format only (`-o=value`, `--option=value`)
   - `JOINED`: Direct attachment (`-lcuda`, `--librarycuda`)
-  - `SEPARATE | JOINED`: Both formats supported
-  - `FLAG`: Boolean flag, no value
-- `allowed_values`: For SEPARATE/JOINED - list of valid values like `{"json", "xml"}`, use `{}` for any value
+  - `FLAG`: Boolean flag, no value required
+  - `SHORT`: Allow single-dash long options (`-help` instead of `--help`)
+  - Combined formats:
+    - `SEPARATE | EQ_JOIN`: Both space and equals formats
+    - `SEPARATE | EQ_JOIN | JOINED`: All three formats (space, equals, joined)
+    - `SEPARATE | SHORT`: Space-separated with single-dash support
+- `allowed_values`: For SEPARATE/JOINED/EQ_JOIN - list of valid values like `{"json", "xml"}`, use `{}` for any value
 
 ### Separate Options (Standard Command-line Flags)
 
-Most common option type for standard command-line interfaces. Supports both space-separated and equals-separated formats:
+Most common option type for standard command-line interfaces. Pure SEPARATE kind only supports space-separated format:
 
 ```cpp
 #define MY_ARGS(F) \
@@ -157,35 +168,43 @@ DEFINE_ARGS(App, AppTable, MY_ARGS)
 
 Usage examples:
 ```bash
-# Space-separated format
+# Space-separated format (SEPARATE only)
 ./app -o out.txt
 ./app --output out.txt  
 ./app -c dev
+```
 
-# Equals-separated format
+**Supported formats for pure SEPARATE kind**:
+- Short option with space: `-o value`
+- Long option with space: `--output value`
+
+For equals-separated format support, use `SEPARATE | EQ_JOIN`:
+```cpp
+F(output, o, "Output file", SEPARATE | EQ_JOIN, {})
+```
+
+With `SEPARATE | EQ_JOIN`, all these formats work:
+```bash
+# Space-separated
+./app -o out.txt
+./app --output out.txt
+
+# Equals-separated
 ./app -o=out.txt
 ./app --output=out.txt
-./app --config=dev
 
 # Mixed formats are fully supported
 ./app -o output.txt --config=prod -v
 ```
 
-**Supported formats for SEPARATE kind**:
-- Short option with space: `-o value`
-- Long option with space: `--output value`
-- Short option with equals: `-o=value`
-- Long option with equals: `--output=value`
-- All formats are interchangeable and can be mixed
-
 ### Separate and Joined Options (Flexible Format Support)
 
-For maximum flexibility, you can combine SEPARATE and JOINED using bitwise OR:
+For maximum flexibility, you can combine multiple formats using bitwise OR:
 
 ```cpp
 #define MY_ARGS(F) \
-  F(include, I, "Include path", SEPARATE | JOINED, {}) \
-  F(define, D, "Define macro", SEPARATE | JOINED, {})
+  F(include, I, "Include path", SEPARATE | EQ_JOIN | JOINED, {}) \
+  F(define, D, "Define macro", SEPARATE | EQ_JOIN | JOINED, {})
 
 DEFINE_ARGS(App, AppTable, MY_ARGS)
 ```
@@ -195,7 +214,7 @@ This supports ALL formats:
 # Space-separated (SEPARATE)
 ./app -I /usr/include
 
-# Equals-separated (SEPARATE)
+# Equals-separated (EQ_JOIN)
 ./app -I=/usr/include
 ./app --include=/usr/include
 
@@ -207,7 +226,12 @@ This supports ALL formats:
 ./app -I/path1 -I=/path2 --include/path3
 ```
 
-**Note**: This replaces the old `SEPARATE_OR_JOINED` kind. Now you simply use `SEPARATE | JOINED`.
+**Format support breakdown**:
+- `SEPARATE`: Space-separated only (`-I value`)
+- `SEPARATE | EQ_JOIN`: Space + equals formats (`-I value` or `-I=value`)
+- `SEPARATE | EQ_JOIN | JOINED`: All three formats (space, equals, joined)
+
+**Note**: For backward compatibility with code that used the old `SEPARATE_OR_JOINED` kind, replace it with `SEPARATE | EQ_JOIN | JOINED`.
 
 ### Joined Options (Compiler-style Flags)
 
@@ -215,8 +239,13 @@ Parameters:
 - `name`: Option identifier (use underscores, e.g., `log_lvl`)
 - `short_name`: Single character short form (e.g., `p` for `-p`)
 - `help_text`: Description shown in help message
-- `SEPARATE`, `FLAG`, `JOINED`, or `SEPARATE_OR_JOINED`: Kind identifier
-- `allowed_values`: For SEPARATE/JOINED - list of valid values like `{"json", "xml"}`, use `{}` for any value
+- Kind identifier (use bit flags, can be combined with `|`):
+  - `SEPARATE`: Space-separated only
+  - `EQ_JOIN`: Equals-separated only
+  - `JOINED`: Direct attachment
+  - `FLAG`: Boolean flag
+  - Combined: `SEPARATE | EQ_JOIN`, `SEPARATE | EQ_JOIN | JOINED`, etc.
+- `allowed_values`: For SEPARATE/JOINED/EQ_JOIN - list of valid values like `{"json", "xml"}`, use `{}` for any value
 
 ### Macro Structure
 
@@ -496,10 +525,26 @@ Usage (both short and long options supported):
 g++ -Lcuda -I/usr/local/include -DNDEBUG --librarypthread -o app.out main.cpp
 ```
 
-**Supported formats**:
+**Supported formats for JOINED**:
 - Short option with joined value: `-Lcuda`, `-I/path`
 - Long option with joined value: `--librarycuda`, `--lpthread`
-- **Not supported**: `--library=cuda` (use SEPARATE_OR_JOINED for `=` separator)
+- **Not supported**: `--library=cuda` or `--library cuda` (these require `EQ_JOIN` or `SEPARATE`)
+
+For compiler-like flags that also support equals format, use `SEPARATE | EQ_JOIN | JOINED`:
+```
+F(library, L, "Link library", SEPARATE | EQ_JOIN | JOINED, {"cuda", "stdc++"})
+```
+
+This allows all formats:
+```bash
+-Lcuda                 # JOINED
+-Lcuda                 # JOINED (short)
+--librarycuda          # JOINED (long)
+-L=cuda                # EQ_JOIN (short with equals)
+--library=cuda         # EQ_JOIN (long with equals)
+-L cuda                # SEPARATE (short with space)
+--library cuda         # SEPARATE (long with space)
+```
 
 ### Positional Inputs
 

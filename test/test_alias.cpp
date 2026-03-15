@@ -42,9 +42,9 @@ void TestAliasWithValue() {
   
   DEFINE_ALIAS(ValueAliasTable, ALIAS_WITH_VALUE)
   
-  #define MAIN_ARGS2(F) \
-    F(output, o, "Output file", SEPARATE, {})
-  
+  #define MAIN_ARGS2(F)                                                        \
+    F(output, o, "Output file", SEPARATE | EQ_JOIN, {})
+
   DEFINE_ARGS(MainArgs2, MainTable2, MAIN_ARGS2)
   
   ArgumentParser parser(MainTable2);

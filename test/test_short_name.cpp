@@ -58,8 +58,8 @@ void TestSingleDashLongOption() {
 // Test FEAT_SHORT with value
 void TestSingleDashLongOptionWithValue() {
   #define SHORT_OPTS2(F) \
-    F(output, o, "Output file", SEPARATE | SHORT, {}) \
-    F(level, l, "Log level", SEPARATE | SHORT, {"debug", "info", "error"})
+    F(output, o, "Output file", SEPARATE | EQ_JOIN | SHORT, {}) \
+    F(level, l, "Log level", SEPARATE | EQ_JOIN | SHORT, {"debug", "info", "error"})
   
   DEFINE_ARGS(ShortOpts2, ShortOptsTable2, SHORT_OPTS2)
   

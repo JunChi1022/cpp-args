@@ -31,11 +31,12 @@ struct Option {
   // - SHORT: long option can be used with single dash (e.g., -help)
   // Can be combined: SEPARATE | JOINED = both formats supported
   enum Feature {
-    FEAT_SEPARATE = 1, // Bit 0: separate format support
-    FEAT_FLAG = 2,     // Bit 1: flag (no value)
-    FEAT_JOINED = 4,   // Bit 2: joined format support
-    FEAT_HIDDEN = 8,   // Bit 3: Hidden option (will not be printed in help)
-    FEAT_SHORT = 16 // Bit 4: Long option also accepts single dash (e.g., -help)
+    FEAT_SEPARATE = 1,      // Bit 0: separate format support (--option value)
+    FEAT_FLAG = 2,          // Bit 1: flag (no value)
+    FEAT_JOINED = 4,        // Bit 2: joined format support (--optionvalue)
+    FEAT_HIDDEN = 8,        // Bit 3: Hidden option (will not be printed in help)
+    FEAT_SHORT = 16,        // Bit 4: Long option also accepts single dash (e.g., -help)
+    FEAT_EQ_JOIN = 32       // Bit 5: equals join format support (--option=value)
   };
 
   int feature; // Changed to int to support bit combinations
@@ -150,7 +151,8 @@ public:
 
           // First try short name lookup
           opt = FindOptionByShortName(shortName);
-          if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
+          // EQ_JOIN supports equals format (-o=value or --option=value)
+          if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
             // Validate value if allowed values are specified
             if (!opt->allowed.empty() &&
                 opt->allowed.find(value) == opt->allowed.end()) {
@@ -168,7 +170,7 @@ public:
             std::string longOptName = arg.substr(1, eqPos - 1);
             // Try FindOption which handles FEAT_SHORT with single dash
             opt = FindOption("-" + longOptName);
-            if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
+            if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
               if (!opt->allowed.empty() &&
                   opt->allowed.find(value) == opt->allowed.end()) {
                 std::cerr << "Error: Invalid value '" << value << "' for "
@@ -215,8 +217,8 @@ public:
           opt = FindOption(fullArg);
         }
 
-        // SEPARATE supports long format with '='
-        if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
+        // Only EQ_JOIN feature supports equals format (--option=value)
+        if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -317,6 +319,7 @@ public:
       }
 
       // For regular OPTION kind with short name, try to extract value with '='
+      // Only EQ_JOIN feature supports equals format (-o=value)
       if (!opt && arg.size() > 2 && arg[0] == '-' && arg[1] != '-' &&
           arg.find('=') != std::string::npos) {
         size_t eqPos = arg.find('=');
@@ -324,7 +327,8 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByShortName(shortName);
 
-        if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
+        // EQ_JOIN feature supports equals format (-o=value or --option=value)
+        if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -356,8 +360,8 @@ public:
           opt = FindOption(arg); // Use FindOption which handles FEAT_SHORT
         }
 
-        // SEPARATE kind supports long format with '='
-        if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
+        // Only EQ_JOIN feature supports equals format (--option=value or -option=value)
+        if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -592,8 +596,15 @@ public:
     bool isFlag = opt->HasFeature(Option::FEAT_FLAG);
     bool hasShortFeature = opt->HasFeature(Option::FEAT_SHORT);
     bool isJoinedOnly = opt->HasFeature(Option::FEAT_JOINED) &&
-                        !opt->HasFeature(Option::FEAT_SEPARATE);
-    // SEPARATE only or SEPARATE|JOINED combination uses space-separated format
+                        !opt->HasFeature(Option::FEAT_SEPARATE) &&
+                        !opt->HasFeature(Option::FEAT_EQ_JOIN);
+    bool hasEqJoin = opt->HasFeature(Option::FEAT_EQ_JOIN);
+    bool hasSeparate = opt->HasFeature(Option::FEAT_SEPARATE);
+    
+    // Rendering priority:
+    // 1. If has SEPARATE feature, use space-separated format (--option value)
+    // 2. Else if has EQ_JOIN feature, use equals format (--option=value)
+    // 3. Else if pure JOINED, use joined format (--optionvalue)
 
     // Render each value occurrence
     for (size_t i = 0; i < values.size(); ++i) {
@@ -605,23 +616,30 @@ public:
         } else {
           renderArgs.push_back("--" + normalizedName);
         }
+      } else if (hasShortFeature && hasSeparate) {
+        // For SEPARATE|SHORT options, use single dash with space-separated value
+        renderArgs.push_back("-" + normalizedName);
+        renderArgs.push_back(values[i]);
+      } else if (hasShortFeature && hasEqJoin && !hasSeparate) {
+        // For EQ_JOIN|SHORT (without SEPARATE) options, use single dash with equals format
+        renderArgs.push_back("-" + normalizedName + "=" + values[i]);
       } else if (hasShortFeature) {
-        // For SEPARATE|SHORT options, use single dash with space-separated
-        // value
+        // Fallback for other SHORT combinations
         renderArgs.push_back("-" + normalizedName);
         renderArgs.push_back(values[i]);
       } else if (isJoinedOnly) {
-        // For pure JOINED options (not SEPARATE|JOINED), render as
-        // --optionvalue
+        // For pure JOINED options (not SEPARATE|JOINED or EQ_JOIN|JOINED), render as --optionvalue
         if (!values[i].empty()) {
           renderArgs.push_back("--" + normalizedName + values[i]);
         } else {
           // Edge case: empty value for joined option
           renderArgs.push_back("--" + normalizedName);
         }
+      } else if (hasEqJoin && !hasSeparate) {
+        // For EQ_JOIN or EQ_JOIN|JOINED options (without SEPARATE), render as --option=value
+        renderArgs.push_back("--" + normalizedName + "=" + values[i]);
       } else {
-        // For SEPARATE or SEPARATE|JOINED options, render as --option value
-        // (space-separated)
+        // For SEPARATE or SEPARATE|JOINED or SEPARATE|EQ_JOIN options, render as --option value (space-separated)
         renderArgs.push_back("--" + normalizedName);
         renderArgs.push_back(values[i]);
       }
@@ -945,6 +963,7 @@ private:
 #define JOINED ::Option::FEAT_JOINED
 #define HIDDEN ::Option::FEAT_HIDDEN
 #define SHORT Option::FEAT_SHORT
+#define EQ_JOIN ::Option::FEAT_EQ_JOIN
 
 // GENERATE_ENUM takes kind and optional allowed values (ignored for enum
 // generation)

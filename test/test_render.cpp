@@ -81,9 +81,9 @@ TEST(TestRender_JoinedOptions) {
 // Test Render with SEPARATE | JOINED options
 TEST(TestRender_SeparateOrJoinedOptions) {
   #define ARGS(F)                                                            \
-    F(include, I, "Include directory", SEPARATE | JOINED, {})                \
-    F(define, D, "Macro definition", SEPARATE | JOINED, {})
-  
+    F(include, I, "Include directory", SEPARATE | EQ_JOIN | JOINED, {})                \
+    F(define, D, "Macro definition", SEPARATE | EQ_JOIN | JOINED, {})
+
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
   
   ArgumentParser parser(AppTable);
@@ -124,8 +124,8 @@ TEST(TestRender_ShortFeatureOptions) {
   #define ARGS(F)                                                            \
     F(help, h, "Print help", FLAG | SHORT, {})                               \
     F(verbose, v, "Verbose mode", FLAG | SHORT, {})                          \
-    F(output, o, "Output file", SEPARATE | SHORT, {})
-  
+    F(output, o, "Output file", SEPARATE | EQ_JOIN | SHORT, {})
+
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
   
   ArgumentParser parser(AppTable);
@@ -282,13 +282,13 @@ TEST(TestRender_OptionNotSpecified) {
 // Test Render with complex scenario mixing all types
 TEST(TestRender_ComplexScenario) {
   #define ARGS(F)                                                            \
-    F(include, I, "Include directory", SEPARATE | JOINED, {})                \
-    F(library, L, "Library path", SEPARATE | JOINED, {})                     \
-    F(define, D, "Macro definition", SEPARATE | JOINED, {})                  \
+    F(include, I, "Include directory", SEPARATE | EQ_JOIN | JOINED, {})                \
+    F(library, L, "Library path", SEPARATE | EQ_JOIN | JOINED, {})                     \
+    F(define, D, "Macro definition", SEPARATE | EQ_JOIN | JOINED, {})                  \
     F(verbose, v, "Verbose mode", FLAG | SHORT, {})                          \
-    F(output, o, "Output file", SEPARATE | SHORT, {})                        \
-    F(config, c, "Config files", SEPARATE, {})
-  
+    F(output, o, "Output file", SEPARATE | EQ_JOIN | SHORT, {})                        \
+    F(config, c, "Config files", SEPARATE | EQ_JOIN, {})
+
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
   
   ArgumentParser parser(AppTable);
@@ -356,10 +356,10 @@ TEST(TestRender_ComplexScenario) {
 // Test Render parse equivalence - verify that parsing rendered output gives same result
 TEST(TestRender_ParseEquivalence) {
   #define ARGS(F)                                                            \
-    F(include, I, "Include directory", SEPARATE | JOINED, {})                \
-    F(define, D, "Macro definition", SEPARATE | JOINED, {})                  \
+    F(include, I, "Include directory", SEPARATE | EQ_JOIN | JOINED, {})                \
+    F(define, D, "Macro definition", SEPARATE | EQ_JOIN | JOINED, {})                  \
     F(verbose, v, "Verbose", FLAG | SHORT, {})
-  
+
   DEFINE_ARGS(AppArgs, AppTable, ARGS)
   
   // Original parsing

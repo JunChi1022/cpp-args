@@ -8,9 +8,9 @@ using namespace cppargs;
 // Test options with different kinds
 #define TEST_OPTIONS(F)                                                        \
   F(library, L, "Link library", JOINED, {"cuda", "stdc++", "pthread"})         \
-  F(include, I, "Include directory", SEPARATE | JOINED, {})                   \
-  F(output, o, "Output file", SEPARATE, {})                                      \
-  F(port, p, "Port number", SEPARATE, {})                                        \
+  F(include, I, "Include directory", SEPARATE | EQ_JOIN | JOINED, {})                   \
+  F(output, o, "Output file", SEPARATE | EQ_JOIN, {})                                      \
+  F(port, p, "Port number", SEPARATE | EQ_JOIN, {})                                        \
   F(verbose, v, "Verbose mode", FLAG, {})
 
 DEFINE_ARGS(OptionTest, ParsingTestTable, TEST_OPTIONS)
