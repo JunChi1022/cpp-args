@@ -35,13 +35,13 @@ struct Option {
     FEAT_FLAG = 2,     // Bit 1: flag (no value)
     FEAT_JOINED = 4,   // Bit 2: joined format support
     FEAT_HIDDEN = 8,   // Bit 3: Hidden option (will not be printed in help)
-    FEAT_SHORT = 16    // Bit 4: Long option also accepts single dash (e.g., -help)
+    FEAT_SHORT = 16 // Bit 4: Long option also accepts single dash (e.g., -help)
   };
 
   int feature; // Changed to int to support bit combinations
 
   // Helper to check if feature has specific flag
-  bool hasFeature(int flag) const { return (feature & flag) != 0; }
+  bool HasFeature(int flag) const { return (feature & flag) != 0; }
 
   // Group ID for grouping options in help output
   int groupId;
@@ -150,7 +150,7 @@ public:
 
           // First try short name lookup
           opt = FindOptionByShortName(shortName);
-          if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
+          if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
             // Validate value if allowed values are specified
             if (!opt->allowed.empty() &&
                 opt->allowed.find(value) == opt->allowed.end()) {
@@ -161,17 +161,18 @@ public:
             parsedArgs[opt->id].push_back(value);
             continue;
           }
-          
-          // If not found as short name, check if it matches a FEAT_SHORT long option
+
+          // If not found as short name, check if it matches a FEAT_SHORT long
+          // option
           if (!opt) {
             std::string longOptName = arg.substr(1, eqPos - 1);
             // Try FindOption which handles FEAT_SHORT with single dash
             opt = FindOption("-" + longOptName);
-            if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
+            if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
               if (!opt->allowed.empty() &&
                   opt->allowed.find(value) == opt->allowed.end()) {
-                std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                          << std::endl;
+                std::cerr << "Error: Invalid value '" << value << "' for "
+                          << arg << std::endl;
                 return false;
               }
               parsedArgs[opt->id].push_back(value);
@@ -185,7 +186,7 @@ public:
 
         opt = FindOptionByShortName(shortName);
 
-        if (opt && opt->hasFeature(Option::FEAT_JOINED)) {
+        if (opt && opt->HasFeature(Option::FEAT_JOINED)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -215,7 +216,7 @@ public:
         }
 
         // SEPARATE supports long format with '='
-        if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
+        if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -232,35 +233,26 @@ public:
       // value for JOINED kind
       if (!opt && arg.size() > 3 && arg.find("--") == 0) {
         std::string longName = arg.substr(2);
-        opt = FindOptionByLongName(longName);
-
-        // Found exact match but it's JOINED kind without value
-        if (opt && opt->hasFeature(Option::FEAT_JOINED)) {
-          std::cerr << "Error: Missing value for " << arg << std::endl;
-          return false;
-        }
 
         // Try to find a JOINED option where the value is attached directly
         // e.g., --librarycuda where "library" is the long name and "cuda" is
         // the value
-        if (!opt) {
-          for (const auto &option : optionTable) {
-            if (option.feature == Option::FEAT_JOINED) {
-              std::string expectedPrefix = "--" + option.longName;
-              if (arg.find(expectedPrefix) == 0 &&
-                  arg.size() > expectedPrefix.size()) {
-                std::string value = arg.substr(expectedPrefix.size());
-                // Validate value if allowed values are specified
-                if (!option.allowed.empty() &&
-                    option.allowed.find(value) == option.allowed.end()) {
-                  std::cerr << "Error: Invalid value '" << value << "' for "
-                            << arg << std::endl;
-                  return false;
-                }
-                parsedArgs[option.id].push_back(value);
-                opt = &option;
-                break;
+        for (const auto &option : optionTable) {
+          if (option.HasFeature(Option::FEAT_JOINED)) {
+            std::string expectedPrefix = "--" + option.longName;
+            if (arg.find(expectedPrefix) == 0 &&
+                arg.size() > expectedPrefix.size()) {
+              std::string value = arg.substr(expectedPrefix.size());
+              // Validate value if allowed values are specified
+              if (!option.allowed.empty() &&
+                  option.allowed.find(value) == option.allowed.end()) {
+                std::cerr << "Error: Invalid value '" << value << "' for "
+                          << arg << std::endl;
+                return false;
               }
+              parsedArgs[option.id].push_back(value);
+              opt = &option;
+              break;
             }
           }
         }
@@ -332,7 +324,7 @@ public:
         std::string value = arg.substr(eqPos + 1);
         opt = FindOptionByShortName(shortName);
 
-        if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
+        if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -347,13 +339,13 @@ public:
 
       // For regular OPTION kind with long name, try to extract value with '='
       // Support both --option=value and -option=value (for FEAT_SHORT options)
-      if (!opt && arg.find('=') != std::string::npos && 
+      if (!opt && arg.find('=') != std::string::npos &&
           (arg.find("--") == 0 || arg.find("-") == 0)) {
         size_t eqPos = arg.find('=');
         std::string prefix = arg.substr(0, 2);
         std::string namePart;
         std::string value = arg.substr(eqPos + 1);
-        
+
         if (prefix == "--") {
           // Standard long format: --option=value
           namePart = arg.substr(2, eqPos - 2);
@@ -365,7 +357,7 @@ public:
         }
 
         // SEPARATE kind supports long format with '='
-        if (opt && opt->hasFeature(Option::FEAT_SEPARATE)) {
+        if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
           // Validate value if allowed values are specified
           if (!opt->allowed.empty() &&
               opt->allowed.find(value) == opt->allowed.end()) {
@@ -395,13 +387,13 @@ public:
       }
 
       // If it's a flag, just mark it as present
-      if (opt->hasFeature(Option::FEAT_FLAG)) {
+      if (opt->HasFeature(Option::FEAT_FLAG)) {
         parsedArgs[opt->id].push_back(""); // Empty value for flags
         continue;
       }
 
       // Try to get next argument as value (for SEPARATE)
-      if (opt->hasFeature(Option::FEAT_SEPARATE)) {
+      if (opt->HasFeature(Option::FEAT_SEPARATE)) {
         if (i + 1 >= argc) {
           std::cerr << "Error: Missing value for " << arg << std::endl;
           return false;
@@ -514,7 +506,11 @@ public:
         // For long options, compare against normalized long name
         std::string normLongName = Option::Normalize(opt.longName);
         distance = LevenshteinDistance(normInput, normLongName);
-        candidate = "--" + normLongName;
+        if (opt.HasFeature(Option::FEAT_SHORT)) {
+          candidate = "-" + normLongName;
+        } else {
+          candidate = "--" + normLongName;
+        }
 
         // Also consider short name if it exists and might be a better match
         if (!opt.shortName.empty()) {
@@ -550,6 +546,86 @@ public:
       }
     }
     return -1;
+  }
+
+  /**
+   * @brief Render an option back to command-line format based on parse results
+   * @param optionId The option enum value to render
+   * @param renderArgs Output vector to append rendered arguments
+   *
+   * This function reconstructs command-line arguments from parsed values.
+   * Rendering strategy based on option type:
+   * - SEPARATE (only): Uses space-separated format (--option value)
+   * - JOINED (only): Uses joined format (--optionvalue)
+   * - SEPARATE | JOINED: Uses space-separated format by default (--option
+   * value)
+   * - FLAG | SHORT: Uses single dash format (-option)
+   * - SEPARATE | SHORT: Uses single dash format with space-separated value
+   * (-option value)
+   * - FLAG (no SHORT): Uses double dash format (--option)
+   * For options with multiple values, each value is rendered separately.
+   */
+  void Render(int optionId, std::vector<std::string> &renderArgs) const {
+    // Find the option in the table
+    const Option *opt = nullptr;
+    for (const auto &o : optionTable) {
+      if (o.id == optionId) {
+        opt = &o;
+        break;
+      }
+    }
+
+    if (!opt) {
+      return; // Option not found
+    }
+
+    // Check if this option was parsed
+    auto it = parsedArgs.find(optionId);
+    if (it == parsedArgs.end()) {
+      return; // Option was not specified
+    }
+
+    const auto &values = it->second;
+    std::string normalizedName = Option::Normalize(opt->longName);
+
+    // Determine rendering format based on option type
+    bool isFlag = opt->HasFeature(Option::FEAT_FLAG);
+    bool hasShortFeature = opt->HasFeature(Option::FEAT_SHORT);
+    bool isJoinedOnly = opt->HasFeature(Option::FEAT_JOINED) &&
+                        !opt->HasFeature(Option::FEAT_SEPARATE);
+    // SEPARATE only or SEPARATE|JOINED combination uses space-separated format
+
+    // Render each value occurrence
+    for (size_t i = 0; i < values.size(); ++i) {
+      if (isFlag) {
+        // For flags with SHORT feature, use single dash format (-option)
+        // For normal flags, use double dash format (--option)
+        if (hasShortFeature) {
+          renderArgs.push_back("-" + normalizedName);
+        } else {
+          renderArgs.push_back("--" + normalizedName);
+        }
+      } else if (hasShortFeature) {
+        // For SEPARATE|SHORT options, use single dash with space-separated
+        // value
+        renderArgs.push_back("-" + normalizedName);
+        renderArgs.push_back(values[i]);
+      } else if (isJoinedOnly) {
+        // For pure JOINED options (not SEPARATE|JOINED), render as
+        // --optionvalue
+        if (!values[i].empty()) {
+          renderArgs.push_back("--" + normalizedName + values[i]);
+        } else {
+          // Edge case: empty value for joined option
+          renderArgs.push_back("--" + normalizedName);
+        }
+      } else {
+        // For SEPARATE or SEPARATE|JOINED options, render as --option value
+        // (space-separated)
+        renderArgs.push_back("--" + normalizedName);
+        renderArgs.push_back(values[i]);
+      }
+    }
   }
 
   virtual void PrintHelp(int wrappedWidth = 100) const {
@@ -615,14 +691,14 @@ public:
 
 private:
   virtual void printOption(const Option *opt, int wrappedWidth = 100) const {
-    if (opt->hasFeature(Option::FEAT_HIDDEN)) {
+    if (opt->HasFeature(Option::FEAT_HIDDEN)) {
       return;
     }
 
     // brief = longName [kind] [allow values]
     // For FEAT_SHORT options, show both --option and -option formats
     std::string brief;
-    if (opt->hasFeature(Option::FEAT_SHORT)) {
+    if (opt->HasFeature(Option::FEAT_SHORT)) {
       brief = "-/" + Option::Normalize(opt->longName);
     } else {
       brief = "--" + Option::Normalize(opt->longName);
@@ -697,24 +773,32 @@ private:
     // Strip prefix (-- or -) and normalize the input
     std::string cleanInput = input;
     bool isSingleDash = false;
-    if (cleanInput.find("--") == 0)
+    bool isDoubleDash = false;
+    if (cleanInput.find("--") == 0) {
       cleanInput = cleanInput.substr(2);
-    else if (cleanInput.find("-") == 0) {
+      isDoubleDash = true;
+    } else if (cleanInput.find("-") == 0) {
       cleanInput = cleanInput.substr(1);
       isSingleDash = true;
     }
     std::string normInput = Option::Normalize(cleanInput);
 
     for (const auto &opt : optionTable) {
-      // Match normalized long name OR short name
-      if (Option::Normalize(opt.longName) == normInput)
-        return &opt;
+      // Match short name (works for both single and double dash)
       if (opt.shortName == normInput)
         return &opt;
-      
-      // For single-dash input, check if option has FEAT_SHORT flag
-      // This allows long options to be used with single dash (e.g., -help)
-      if (isSingleDash && opt.hasFeature(Option::FEAT_SHORT) &&
+
+      // For FEAT_SHORT options with single dash, match long name
+      // This allows -help but NOT --help for FLAG|SHORT options
+      if (isSingleDash && opt.HasFeature(Option::FEAT_SHORT) &&
+          Option::Normalize(opt.longName) == normInput) {
+        return &opt;
+      }
+
+      // For normal options (without FEAT_SHORT), match long name with double
+      // dash Or match long name regardless of dash type for non-FEAT_SHORT
+      // options
+      if (!opt.HasFeature(Option::FEAT_SHORT) &&
           Option::Normalize(opt.longName) == normInput) {
         return &opt;
       }
@@ -725,8 +809,17 @@ private:
     if (it != aliasMap.end()) {
       std::string normOptionName = Option::Normalize(it->second);
       for (const auto &opt : optionTable) {
-        if (Option::Normalize(opt.longName) == normOptionName ||
-            opt.shortName == normOptionName) {
+        if (opt.shortName == normInput)
+          return &opt;
+
+        // For aliases, only allow single dash or short form, not double dash
+        if (isSingleDash && opt.HasFeature(Option::FEAT_SHORT) &&
+            Option::Normalize(opt.longName) == normOptionName) {
+          return &opt;
+        }
+
+        if (!opt.HasFeature(Option::FEAT_SHORT) &&
+            Option::Normalize(opt.longName) == normOptionName) {
           return &opt;
         }
       }
