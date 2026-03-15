@@ -31,12 +31,13 @@ struct Option {
   // - SHORT: long option can be used with single dash (e.g., -help)
   // Can be combined: SEPARATE | JOINED = both formats supported
   enum Feature {
-    FEAT_SEPARATE = 1,      // Bit 0: separate format support (--option value)
-    FEAT_FLAG = 2,          // Bit 1: flag (no value)
-    FEAT_JOINED = 4,        // Bit 2: joined format support (--optionvalue)
-    FEAT_HIDDEN = 8,        // Bit 3: Hidden option (will not be printed in help)
-    FEAT_SHORT = 16,        // Bit 4: Long option also accepts single dash (e.g., -help)
-    FEAT_EQ_JOIN = 32       // Bit 5: equals join format support (--option=value)
+    FEAT_SEPARATE = 1, // Bit 0: separate format support (--option value)
+    FEAT_FLAG = 2,     // Bit 1: flag (no value)
+    FEAT_JOINED = 4,   // Bit 2: joined format support (--optionvalue)
+    FEAT_HIDDEN = 8,   // Bit 3: Hidden option (will not be printed in help)
+    FEAT_SHORT =
+        16, // Bit 4: Long option also accepts single dash (e.g., -help)
+    FEAT_EQ_JOIN = 32 // Bit 5: equals join format support (--option=value)
   };
 
   int feature; // Changed to int to support bit combinations
@@ -134,284 +135,37 @@ public:
         continue;
       }
 
-      // Try to find exact match first
-      const Option *opt = FindOption(arg);
-
-      // If not found and it's a short option, try to extract joined value
-      if (!opt && arg.size() > 2 && arg[0] == '-' && arg[1] != '-') {
-        std::string shortName = arg.substr(1, 1);
-        std::string value;
-
-        // Check if there's an '=' to split on
-        size_t eqPos = arg.find('=');
-        if (eqPos != std::string::npos && eqPos > 1) {
-          // Use '=' to split: -I=value or -help=value
-          shortName = arg.substr(1, eqPos - 1);
-          value = arg.substr(eqPos + 1);
-
-          // First try short name lookup
-          opt = FindOptionByShortName(shortName);
-          // EQ_JOIN supports equals format (-o=value or --option=value)
-          if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
-            // Validate value if allowed values are specified
-            if (!opt->allowed.empty() &&
-                opt->allowed.find(value) == opt->allowed.end()) {
-              std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                        << std::endl;
-              return false;
-            }
-            parsedArgs[opt->id].push_back(value);
-            continue;
-          }
-
-          // If not found as short name, check if it matches a FEAT_SHORT long
-          // option
-          if (!opt) {
-            std::string longOptName = arg.substr(1, eqPos - 1);
-            // Try FindOption which handles FEAT_SHORT with single dash
-            opt = FindOption("-" + longOptName);
-            if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
-              if (!opt->allowed.empty() &&
-                  opt->allowed.find(value) == opt->allowed.end()) {
-                std::cerr << "Error: Invalid value '" << value << "' for "
-                          << arg << std::endl;
-                return false;
-              }
-              parsedArgs[opt->id].push_back(value);
-              continue;
-            }
-          }
-        } else {
-          // No '=', take everything after short name: -Ivalue
-          value = arg.substr(2);
-        }
-
-        opt = FindOptionByShortName(shortName);
-
-        if (opt && opt->HasFeature(Option::FEAT_JOINED)) {
-          // Validate value if allowed values are specified
-          if (!opt->allowed.empty() &&
-              opt->allowed.find(value) == opt->allowed.end()) {
-            std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                      << std::endl;
-            return false;
-          }
-          parsedArgs[opt->id].push_back(value);
-          continue;
-        }
-      }
-
-      // If not found and it's a long option with '=', try to extract joined
-      // value
-      if (!opt && arg.find('=') != std::string::npos && arg.find("--") == 0) {
-        size_t eqPos = arg.find('=');
-        std::string longName = arg.substr(2, eqPos - 2);
-        std::string value = arg.substr(eqPos + 1);
-
-        // Try to find by long name first (without alias)
-        opt = FindOptionByLongName(longName);
-
-        // If not found, try alias lookup
-        if (!opt) {
-          std::string fullArg = "--" + longName;
-          opt = FindOption(fullArg);
-        }
-
-        // Only EQ_JOIN feature supports equals format (--option=value)
-        if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
-          // Validate value if allowed values are specified
-          if (!opt->allowed.empty() &&
-              opt->allowed.find(value) == opt->allowed.end()) {
-            std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                      << std::endl;
-            return false;
-          }
-          parsedArgs[opt->id].push_back(value);
-          continue;
-        }
-      }
-
-      // If not found and it's a long option without '=', try to extract joined
-      // value for JOINED kind
-      if (!opt && arg.size() > 3 && arg.find("--") == 0) {
-        std::string longName = arg.substr(2);
-
-        // Try to find a JOINED option where the value is attached directly
-        // e.g., --librarycuda where "library" is the long name and "cuda" is
-        // the value
-        for (const auto &option : optionTable) {
-          if (option.HasFeature(Option::FEAT_JOINED)) {
-            std::string expectedPrefix = "--" + option.longName;
-            if (arg.find(expectedPrefix) == 0 &&
-                arg.size() > expectedPrefix.size()) {
-              std::string value = arg.substr(expectedPrefix.size());
-              // Validate value if allowed values are specified
-              if (!option.allowed.empty() &&
-                  option.allowed.find(value) == option.allowed.end()) {
-                std::cerr << "Error: Invalid value '" << value << "' for "
-                          << arg << std::endl;
-                return false;
-              }
-              parsedArgs[option.id].push_back(value);
-              opt = &option;
-              break;
-            }
-          }
-        }
-
-        // If still not found, try alias names for JOINED options
-        if (!opt && !aliasTable.empty()) {
-          for (const auto &alias : aliasTable) {
-            // Find the option this alias maps to
-            std::string normOptionName = Option::Normalize(alias.optionName);
-            const Option *targetOpt = nullptr;
-            for (const auto &opt : optionTable) {
-              if (Option::Normalize(opt.longName) == normOptionName ||
-                  opt.shortName == normOptionName) {
-                targetOpt = &opt;
-                break;
-              }
-            }
-
-            if (targetOpt && targetOpt->feature == Option::FEAT_JOINED) {
-              // Try long alias
-              std::string expectedPrefix = "--" + alias.aliasName;
-              if (arg.find(expectedPrefix) == 0 &&
-                  arg.size() > expectedPrefix.size()) {
-                std::string value = arg.substr(expectedPrefix.size());
-                // Validate value if allowed values are specified
-                if (!targetOpt->allowed.empty() &&
-                    targetOpt->allowed.find(value) ==
-                        targetOpt->allowed.end()) {
-                  std::cerr << "Error: Invalid value '" << value << "' for "
-                            << arg << std::endl;
-                  return false;
-                }
-                parsedArgs[targetOpt->id].push_back(value);
-                opt = targetOpt;
-                break;
-              }
-
-              // Try short alias
-              if (!alias.shortAliasName.empty()) {
-                std::string shortPrefix = "-" + alias.shortAliasName;
-                if (arg.find(shortPrefix) == 0 &&
-                    arg.size() > shortPrefix.size()) {
-                  std::string value = arg.substr(shortPrefix.size());
-                  if (!targetOpt->allowed.empty() &&
-                      targetOpt->allowed.find(value) ==
-                          targetOpt->allowed.end()) {
-                    std::cerr << "Error: Invalid value '" << value << "' for "
-                              << arg << std::endl;
-                    return false;
-                  }
-                  parsedArgs[targetOpt->id].push_back(value);
-                  opt = targetOpt;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        if (opt)
-          continue;
-      }
-
-      // For regular OPTION kind with short name, try to extract value with '='
-      // Only EQ_JOIN feature supports equals format (-o=value)
-      if (!opt && arg.size() > 2 && arg[0] == '-' && arg[1] != '-' &&
-          arg.find('=') != std::string::npos) {
-        size_t eqPos = arg.find('=');
-        std::string shortName = arg.substr(1, eqPos - 1);
-        std::string value = arg.substr(eqPos + 1);
-        opt = FindOptionByShortName(shortName);
-
-        // EQ_JOIN feature supports equals format (-o=value or --option=value)
-        if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
-          // Validate value if allowed values are specified
-          if (!opt->allowed.empty() &&
-              opt->allowed.find(value) == opt->allowed.end()) {
-            std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                      << std::endl;
-            return false;
-          }
-          parsedArgs[opt->id].push_back(value);
-          continue;
-        }
-      }
-
-      // For regular OPTION kind with long name, try to extract value with '='
-      // Support both --option=value and -option=value (for FEAT_SHORT options)
-      if (!opt && arg.find('=') != std::string::npos &&
-          (arg.find("--") == 0 || arg.find("-") == 0)) {
-        size_t eqPos = arg.find('=');
-        std::string prefix = arg.substr(0, 2);
-        std::string namePart;
-        std::string value = arg.substr(eqPos + 1);
-
-        if (prefix == "--") {
-          // Standard long format: --option=value
-          namePart = arg.substr(2, eqPos - 2);
-          opt = FindOptionByLongName(namePart);
-        } else {
-          // Single dash format: -option=value (for FEAT_SHORT options)
-          namePart = arg.substr(1, eqPos - 1);
-          opt = FindOption(arg); // Use FindOption which handles FEAT_SHORT
-        }
-
-        // Only EQ_JOIN feature supports equals format (--option=value or -option=value)
-        if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
-          // Validate value if allowed values are specified
-          if (!opt->allowed.empty() &&
-              opt->allowed.find(value) == opt->allowed.end()) {
-            std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                      << std::endl;
-            return false;
-          }
-          parsedArgs[opt->id].push_back(value);
-          continue;
-        }
-      }
-
-      if (!opt) {
-        // Unknown option
-        unknownArgs.push_back(arg);
-        if (!allowUnknown) {
-          std::string suggestion = FindSimilarOption(arg);
-          if (!suggestion.empty()) {
-            std::cerr << "Error: Unknown argument '" << arg
-                      << "'. Did you mean '" << suggestion << "'?" << std::endl;
-          } else {
-            std::cerr << "Error: Unknown argument '" << arg << "'" << std::endl;
-          }
-          return false;
-        }
+      // Try parsing in order of specificity:
+      // 1. Flag (no value needed)
+      if (ParseFlag(arg)) {
         continue;
       }
 
-      // If it's a flag, just mark it as present
-      if (opt->HasFeature(Option::FEAT_FLAG)) {
-        parsedArgs[opt->id].push_back(""); // Empty value for flags
+      // 2. Separate format (--option value)
+      if (ParseSeparate(arg, i, argc, argv)) {
         continue;
       }
 
-      // Try to get next argument as value (for SEPARATE)
-      if (opt->HasFeature(Option::FEAT_SEPARATE)) {
-        if (i + 1 >= argc) {
-          std::cerr << "Error: Missing value for " << arg << std::endl;
-          return false;
+      // 3. Equals join format (--option=value)
+      if (ParseEqJoin(arg)) {
+        continue;
+      }
+
+      // 4. Joined format (--optionvalue or -Ivalue)
+      if (ParseJoined(arg)) {
+        continue;
+      }
+
+      // Unknown option
+      unknownArgs.push_back(arg);
+      if (!allowUnknown) {
+        std::string suggestion = FindSimilarOption(arg);
+        if (!suggestion.empty()) {
+          std::cerr << "Error: Unknown argument '" << arg << "'. Did you mean '"
+                    << suggestion << "'?" << std::endl;
+        } else {
+          std::cerr << "Error: Unknown argument '" << arg << "'" << std::endl;
         }
-        std::string value = argv[++i];
-        if (!opt->allowed.empty() &&
-            opt->allowed.find(value) == opt->allowed.end()) {
-          std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                    << std::endl;
-          return false;
-        }
-        parsedArgs[opt->id].push_back(value);
-      } else {
-        std::cerr << "Error: Missing value for " << arg << std::endl;
         return false;
       }
     }
@@ -600,7 +354,7 @@ public:
                         !opt->HasFeature(Option::FEAT_EQ_JOIN);
     bool hasEqJoin = opt->HasFeature(Option::FEAT_EQ_JOIN);
     bool hasSeparate = opt->HasFeature(Option::FEAT_SEPARATE);
-    
+
     // Rendering priority:
     // 1. If has SEPARATE feature, use space-separated format (--option value)
     // 2. Else if has EQ_JOIN feature, use equals format (--option=value)
@@ -617,18 +371,21 @@ public:
           renderArgs.push_back("--" + normalizedName);
         }
       } else if (hasShortFeature && hasSeparate) {
-        // For SEPARATE|SHORT options, use single dash with space-separated value
+        // For SEPARATE|SHORT options, use single dash with space-separated
+        // value
         renderArgs.push_back("-" + normalizedName);
         renderArgs.push_back(values[i]);
       } else if (hasShortFeature && hasEqJoin && !hasSeparate) {
-        // For EQ_JOIN|SHORT (without SEPARATE) options, use single dash with equals format
+        // For EQ_JOIN|SHORT (without SEPARATE) options, use single dash with
+        // equals format
         renderArgs.push_back("-" + normalizedName + "=" + values[i]);
       } else if (hasShortFeature) {
         // Fallback for other SHORT combinations
         renderArgs.push_back("-" + normalizedName);
         renderArgs.push_back(values[i]);
       } else if (isJoinedOnly) {
-        // For pure JOINED options (not SEPARATE|JOINED or EQ_JOIN|JOINED), render as --optionvalue
+        // For pure JOINED options (not SEPARATE|JOINED or EQ_JOIN|JOINED),
+        // render as --optionvalue
         if (!values[i].empty()) {
           renderArgs.push_back("--" + normalizedName + values[i]);
         } else {
@@ -636,10 +393,12 @@ public:
           renderArgs.push_back("--" + normalizedName);
         }
       } else if (hasEqJoin && !hasSeparate) {
-        // For EQ_JOIN or EQ_JOIN|JOINED options (without SEPARATE), render as --option=value
+        // For EQ_JOIN or EQ_JOIN|JOINED options (without SEPARATE), render as
+        // --option=value
         renderArgs.push_back("--" + normalizedName + "=" + values[i]);
       } else {
-        // For SEPARATE or SEPARATE|JOINED or SEPARATE|EQ_JOIN options, render as --option value (space-separated)
+        // For SEPARATE or SEPARATE|JOINED or SEPARATE|EQ_JOIN options, render
+        // as --option value (space-separated)
         renderArgs.push_back("--" + normalizedName);
         renderArgs.push_back(values[i]);
       }
@@ -772,10 +531,16 @@ private:
     // print alias
     for (const auto &it : aliasTable) {
       if (it.optionName == opt->longName) {
-        std::cout << std::left << std::setw(wrappedWidth - 30)
-                  << ("--" + it.aliasName);
-        if (!it.shortAliasName.empty()) {
-          std::cout << "(-" << it.shortAliasName << ")";
+        if (it.aliasName.empty()) {
+          // only short alias name
+          std::cout << std::left << std::setw(wrappedWidth - 30)
+                    << ("-" + it.shortAliasName);
+        } else {
+          std::cout << std::left << std::setw(wrappedWidth - 30)
+                    << ("--" + it.aliasName);
+          if (!it.shortAliasName.empty()) {
+            std::cout << "(-" << it.shortAliasName << ")";
+          }
         }
         std::cout << std::endl;
         std::cout << "    Alias for " << "--"
@@ -802,8 +567,8 @@ private:
     std::string normInput = Option::Normalize(cleanInput);
 
     for (const auto &opt : optionTable) {
-      // Match short name (works for both single and double dash)
-      if (opt.shortName == normInput)
+      // Match short name ONLY with single dash format
+      if (isSingleDash && opt.shortName == normInput)
         return &opt;
 
       // For FEAT_SHORT options with single dash, match long name
@@ -826,18 +591,36 @@ private:
     auto it = aliasMap.find(normInput);
     if (it != aliasMap.end()) {
       std::string normOptionName = Option::Normalize(it->second);
-      for (const auto &opt : optionTable) {
-        if (opt.shortName == normInput)
-          return &opt;
 
-        // For aliases, only allow single dash or short form, not double dash
-        if (isSingleDash && opt.HasFeature(Option::FEAT_SHORT) &&
-            Option::Normalize(opt.longName) == normOptionName) {
-          return &opt;
+      // Check if this is a short alias by searching the alias table
+      bool isShortAlias = false;
+      bool isLongAlias = false;
+      for (const auto &alias : aliasTable) {
+        if (!alias.shortAliasName.empty() &&
+            alias.shortAliasName == normInput) {
+          isShortAlias = true;
+          break;
         }
+        // Check if this matches a long alias
+        if (Option::Normalize(alias.aliasName) == normInput) {
+          isLongAlias = true;
+          break;
+        }
+      }
 
-        if (!opt.HasFeature(Option::FEAT_SHORT) &&
-            Option::Normalize(opt.longName) == normOptionName) {
+      // Short aliases require single dash format
+      if (isShortAlias && !isSingleDash) {
+        return nullptr;
+      }
+
+      // Long aliases require double dash format
+      if (isLongAlias && !isDoubleDash) {
+        return nullptr;
+      }
+
+      // Find the option by its name (from alias map value)
+      for (const auto &opt : optionTable) {
+        if (Option::Normalize(opt.longName) == normOptionName) {
           return &opt;
         }
       }
@@ -887,6 +670,230 @@ private:
     }
 
     return nullptr;
+  }
+
+  /**
+   * @brief Parse flag options (--flag or -flag for FEAT_SHORT)
+   * @param arg The argument string
+   * @return true if successfully parsed as a flag
+   */
+  bool ParseFlag(const std::string &arg) {
+    const Option *opt = FindOption(arg);
+
+    // For FEAT_SHORT options, also check single dash format
+    if (!opt && arg.find("-") == 0 && arg.find("--") != 0) {
+      opt = FindOption(arg);
+    }
+
+    if (opt && opt->HasFeature(Option::FEAT_FLAG)) {
+      parsedArgs[opt->id].push_back("");
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * @brief Parse separate format options (--option value or -option value for
+   * FEAT_SHORT)
+   * @param arg The argument string
+   * @param i Current index in argv (will be incremented if value is consumed)
+   * @param argc Argument count
+   * @param argv Argument vector
+   * @return true if successfully parsed as separate format
+   */
+  bool ParseSeparate(const std::string &arg, int &i, int argc, char *argv[]) {
+    const Option *opt = FindOption(arg);
+
+    if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
+      if (i + 1 >= argc) {
+        std::cerr << "Error: Missing value for " << arg << std::endl;
+        return false;
+      }
+
+      std::string value = argv[++i];
+      if (!opt->allowed.empty() &&
+          opt->allowed.find(value) == opt->allowed.end()) {
+        std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                  << std::endl;
+        return false;
+      }
+
+      parsedArgs[opt->id].push_back(value);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * @brief Parse equals join format options (--option=value or -option=value
+   * for FEAT_SHORT)
+   * @param arg The argument string
+   * @return true if successfully parsed as equals join format
+   */
+  bool ParseEqJoin(const std::string &arg) {
+    size_t eqPos = arg.find('=');
+    if (eqPos == std::string::npos) {
+      return false;
+    }
+
+    std::string namePart;
+    std::string value = arg.substr(eqPos + 1);
+    const Option *opt = nullptr;
+
+    if (arg.find("--") == 0) {
+      // Long format: --option=value
+      namePart = arg.substr(2, eqPos - 2);
+      opt = FindOptionByLongName(namePart);
+      if (!opt) {
+        // Try with full argument for FEAT_SHORT options
+        opt = FindOption(arg.substr(0, eqPos));
+      }
+    } else if (arg.find("-") == 0) {
+      // Short format: -option=value (for FEAT_SHORT options)
+      namePart = arg.substr(1, eqPos - 1);
+      opt = FindOption(arg.substr(0, eqPos));
+    }
+
+    if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
+      if (!opt->allowed.empty() &&
+          opt->allowed.find(value) == opt->allowed.end()) {
+        std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                  << std::endl;
+        return false;
+      }
+
+      parsedArgs[opt->id].push_back(value);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * @brief Parse joined format options (--optionvalue or -lvalue for short
+   * options)
+   * @param arg The argument string
+   * @return true if successfully parsed as joined format
+   */
+  bool ParseJoined(const std::string &arg) {
+    // Try short option format first: -Ivalue, -Lcuda, etc.
+    if (arg.size() > 2 && arg[0] == '-' && arg[1] != '-') {
+      std::string shortName = arg.substr(1, 1);
+      std::string value = arg.substr(2);
+
+      const Option *opt = FindOptionByShortName(shortName);
+      if (opt && opt->HasFeature(Option::FEAT_JOINED)) {
+        if (!opt->allowed.empty() &&
+            opt->allowed.find(value) == opt->allowed.end()) {
+          std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                    << std::endl;
+          return false;
+        }
+
+        parsedArgs[opt->id].push_back(value);
+        return true;
+      }
+    }
+
+    // Try long option format: --librarycuda, --helpme, etc.
+    if (arg.size() > 3 && arg.find("--") == 0) {
+      // Search for JOINED options that match the prefix
+      for (const auto &option : optionTable) {
+        if (option.HasFeature(Option::FEAT_JOINED)) {
+          std::string expectedPrefix = "--" + option.longName;
+          if (arg.find(expectedPrefix) == 0 &&
+              arg.size() > expectedPrefix.size()) {
+            std::string value = arg.substr(expectedPrefix.size());
+
+            if (!option.allowed.empty() &&
+                option.allowed.find(value) == option.allowed.end()) {
+              std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                        << std::endl;
+              return false;
+            }
+
+            parsedArgs[option.id].push_back(value);
+            return true;
+          }
+
+          // Also try with normalized name
+          std::string normalizedPrefix =
+              "--" + Option::Normalize(option.longName);
+          if (arg.find(normalizedPrefix) == 0 &&
+              arg.size() > normalizedPrefix.size()) {
+            std::string value = arg.substr(normalizedPrefix.size());
+
+            if (!option.allowed.empty() &&
+                option.allowed.find(value) == option.allowed.end()) {
+              std::cerr << "Error: Invalid value '" << value << "' for " << arg
+                        << std::endl;
+              return false;
+            }
+
+            parsedArgs[option.id].push_back(value);
+            return true;
+          }
+        }
+      }
+
+      // Try alias names for JOINED options
+      if (!aliasTable.empty()) {
+        for (const auto &alias : aliasTable) {
+          std::string normOptionName = Option::Normalize(alias.optionName);
+          const Option *targetOpt = nullptr;
+          for (const auto &opt : optionTable) {
+            if (Option::Normalize(opt.longName) == normOptionName ||
+                opt.shortName == normOptionName) {
+              targetOpt = &opt;
+              break;
+            }
+          }
+
+          if (targetOpt && targetOpt->HasFeature(Option::FEAT_JOINED)) {
+            // Try long alias
+            std::string expectedPrefix = "--" + alias.aliasName;
+            if (arg.find(expectedPrefix) == 0 &&
+                arg.size() > expectedPrefix.size()) {
+              std::string value = arg.substr(expectedPrefix.size());
+
+              if (!targetOpt->allowed.empty() &&
+                  targetOpt->allowed.find(value) == targetOpt->allowed.end()) {
+                std::cerr << "Error: Invalid value '" << value << "' for "
+                          << arg << std::endl;
+                return false;
+              }
+
+              parsedArgs[targetOpt->id].push_back(value);
+              return true;
+            }
+
+            // Try short alias
+            if (!alias.shortAliasName.empty()) {
+              std::string shortPrefix = "-" + alias.shortAliasName;
+              if (arg.find(shortPrefix) == 0 &&
+                  arg.size() > shortPrefix.size()) {
+                std::string value = arg.substr(shortPrefix.size());
+
+                if (!targetOpt->allowed.empty() &&
+                    targetOpt->allowed.find(value) ==
+                        targetOpt->allowed.end()) {
+                  std::cerr << "Error: Invalid value '" << value << "' for "
+                            << arg << std::endl;
+                  return false;
+                }
+
+                parsedArgs[targetOpt->id].push_back(value);
+                return true;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return false;
   }
 
   /**
