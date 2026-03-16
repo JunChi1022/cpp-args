@@ -965,12 +965,13 @@ private:
  */
 
 // Kind identifiers for macro usage (using bit flags)
-#define SEPARATE ::Option::FEAT_SEPARATE
-#define FLAG ::Option::FEAT_FLAG
-#define JOINED ::Option::FEAT_JOINED
-#define HIDDEN ::Option::FEAT_HIDDEN
-#define SHORT Option::FEAT_SHORT
-#define EQ_JOIN ::Option::FEAT_EQ_JOIN
+// Using full namespace prefix to avoid conflicts
+#define SEPARATE cppargs::Option::FEAT_SEPARATE
+#define FLAG cppargs::Option::FEAT_FLAG
+#define JOINED cppargs::Option::FEAT_JOINED
+#define HIDDEN cppargs::Option::FEAT_HIDDEN
+#define SHORT cppargs::Option::FEAT_SHORT
+#define EQ_JOIN cppargs::Option::FEAT_EQ_JOIN
 
 // GENERATE_ENUM takes kind and optional allowed values (ignored for enum
 // generation)
@@ -982,8 +983,8 @@ private:
 #define MAKE_ALLOWED(...) __VA_ARGS__
 
 #define GENERATE_TABLE(name, sh, help, kind, ...)                              \
-  Option{(int)OPT_##name,           #name, #sh, help,                          \
-         MAKE_ALLOWED(__VA_ARGS__), kind,  -1},
+  cppargs::Option{(int)OPT_##name,           #name, #sh, help,                 \
+                  MAKE_ALLOWED(__VA_ARGS__), kind,  -1},
 
 /**
  * @brief Unified macro for defining all arguments in a single macro
@@ -1006,11 +1007,11 @@ private:
  */
 #define DEFINE_ARGS(EnumName, TableName, ArgsMacro)                            \
   enum EnumName { ArgsMacro(GENERATE_ENUM) EnumName##_COUNT };                 \
-  const Option InitList_##TableName[] = {ArgsMacro(GENERATE_TABLE)};           \
-  static const OptionTable TableName(InitList_##TableName,                     \
-                                     InitList_##TableName +                    \
-                                         sizeof(InitList_##TableName) /        \
-                                             sizeof(InitList_##TableName[0]));
+  const cppargs::Option InitList_##TableName[] = {ArgsMacro(GENERATE_TABLE)};  \
+  static const cppargs::OptionTable TableName(                                 \
+      InitList_##TableName,                                                    \
+      InitList_##TableName +                                                   \
+          sizeof(InitList_##TableName) / sizeof(InitList_##TableName[0]));
 
 /**
  * @brief Macro for defining alias table
@@ -1034,13 +1035,13 @@ private:
 // Generate alias table entries - directly stringify all parameters
 // Empty parameters will become empty strings automatically
 #define GENERATE_ALIAS_ENTRY(alias, short_alias, option)                       \
-  AliasEntry{#alias, #short_alias, #option},
+  cppargs::AliasEntry{#alias, #short_alias, #option},
 
 #define DEFINE_ALIAS(AliasTableName, AliasMacro)                               \
   enum { AliasMacro(GENERATE_ALIAS_ENUM) ALIAS_COUNT };                        \
-  const AliasEntry InitList_##AliasTableName[] = {                             \
+  const cppargs::AliasEntry InitList_##AliasTableName[] = {                    \
       AliasMacro(GENERATE_ALIAS_ENTRY)};                                       \
-  static const AliasTable AliasTableName(                                      \
+  static const cppargs::AliasTable AliasTableName(                             \
       InitList_##AliasTableName,                                               \
       InitList_##AliasTableName + sizeof(InitList_##AliasTableName) /          \
                                       sizeof(InitList_##AliasTableName[0]));
@@ -1072,7 +1073,8 @@ private:
 #define GENERATE_ENUM_WITH_GROUP(group, name, sh, help, kind, ...) OPT_##name,
 
 #define GENERATE_TABLE_WITH_GROUP(group, name, sh, help, kind, ...)            \
-  Option{(int)OPT_##name, #name, #sh, help, __VA_ARGS__, kind, GRP_##group},
+  cppargs::Option{(int)OPT_##name, #name, #sh,        help,                    \
+                  __VA_ARGS__,     kind,  GRP_##group},
 
 #define GENERATE_GROUP_ENUM(name, display) GRP_##name,
 #define GENERATE_GROUP_INFO(name, display) {GRP_##name, display},
@@ -1085,15 +1087,15 @@ private:
   enum ArgEnumName {                                                           \
     ArgsMacro(GENERATE_ENUM_WITH_GROUP) ArgEnumName##_COUNT                    \
   };                                                                           \
-  const Option InitList_##TableName[] = {                                      \
+  const cppargs::Option InitList_##TableName[] = {                             \
       ArgsMacro(GENERATE_TABLE_WITH_GROUP)};                                   \
-  static const OptionTable TableName(InitList_##TableName,                     \
-                                     InitList_##TableName +                    \
-                                         sizeof(InitList_##TableName) /        \
-                                             sizeof(InitList_##TableName[0])); \
-  const OptionGroup GroupList_##TableName[] = {                                \
+  static const cppargs::OptionTable TableName(                                 \
+      InitList_##TableName,                                                    \
+      InitList_##TableName +                                                   \
+          sizeof(InitList_##TableName) / sizeof(InitList_##TableName[0]));     \
+  const cppargs::OptionGroup GroupList_##TableName[] = {                       \
       GroupsMacro(GENERATE_GROUP_INFO)};                                       \
-  static const OptionGroupTable TableName##Groups(                             \
+  static const cppargs::OptionGroupTable TableName##Groups(                    \
       GroupList_##TableName,                                                   \
       GroupList_##TableName +                                                  \
           sizeof(GroupList_##TableName) / sizeof(GroupList_##TableName[0]));
