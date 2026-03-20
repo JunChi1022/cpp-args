@@ -15,6 +15,15 @@
 namespace cppargs {
 
 /**
+ * @brief Parse result status for option parsing
+ */
+enum class ParseResult {
+  Success,    // Successfully parsed
+  Failed,     // Failed to parse (e.g., invalid value) - option was recognized
+  NotAnOption // This is not the type of option we're looking for
+};
+
+/**
  * @brief Option metadata.
  */
 struct Option {
@@ -137,26 +146,46 @@ public:
 
       // Try parsing in order of specificity:
       // 1. Flag (no value needed)
-      if (ParseFlag(arg)) {
+      ParseResult flagResult = ParseFlag(arg);
+      if (flagResult == ParseResult::Success) {
         continue;
+      } else if (flagResult == ParseResult::Failed) {
+        // Option was recognized but failed (e.g., invalid value)
+        return false;
       }
+      // NotAnOption - continue to next parser
 
       // 2. Separate format (--option value)
-      if (ParseSeparate(arg, i, argc, argv)) {
+      ParseResult separateResult = ParseSeparate(arg, i, argc, argv);
+      if (separateResult == ParseResult::Success) {
         continue;
+      } else if (separateResult == ParseResult::Failed) {
+        // Option was recognized but failed (e.g., missing/invalid value)
+        return false;
       }
+      // NotAnOption - continue to next parser
 
       // 3. Equals join format (--option=value)
-      if (ParseEqJoin(arg)) {
+      ParseResult eqJoinResult = ParseEqJoin(arg);
+      if (eqJoinResult == ParseResult::Success) {
         continue;
+      } else if (eqJoinResult == ParseResult::Failed) {
+        // Option was recognized but failed (e.g., invalid value)
+        return false;
       }
+      // NotAnOption - continue to next parser
 
       // 4. Joined format (--optionvalue or -Ivalue)
-      if (ParseJoined(arg)) {
+      ParseResult joinedResult = ParseJoined(arg);
+      if (joinedResult == ParseResult::Success) {
         continue;
+      } else if (joinedResult == ParseResult::Failed) {
+        // Option was recognized but failed (e.g., invalid value)
+        return false;
       }
+      // NotAnOption - continue to unknown handling
 
-      // Unknown option
+      // Unknown option - not recognized by any parser
       unknownArgs.push_back(arg);
       if (!allowUnknown) {
         std::string suggestion = FindSimilarOption(arg);
@@ -675,9 +704,9 @@ private:
   /**
    * @brief Parse flag options (--flag or -flag for FEAT_SHORT)
    * @param arg The argument string
-   * @return true if successfully parsed as a flag
+   * @return ParseResult indicating success, failure, or not this type
    */
-  bool ParseFlag(const std::string &arg) {
+  ParseResult ParseFlag(const std::string &arg) {
     const Option *opt = FindOption(arg);
 
     // For FEAT_SHORT options, also check single dash format
@@ -687,10 +716,10 @@ private:
 
     if (opt && opt->HasFeature(Option::FEAT_FLAG)) {
       parsedArgs[opt->id].push_back("");
-      return true;
+      return ParseResult::Success;
     }
 
-    return false;
+    return ParseResult::NotAnOption;
   }
 
   /**
@@ -700,15 +729,16 @@ private:
    * @param i Current index in argv (will be incremented if value is consumed)
    * @param argc Argument count
    * @param argv Argument vector
-   * @return true if successfully parsed as separate format
+   * @return ParseResult indicating success, failure, or not this type
    */
-  bool ParseSeparate(const std::string &arg, int &i, int argc, char *argv[]) {
+  ParseResult ParseSeparate(const std::string &arg, int &i, int argc,
+                            char *argv[]) {
     const Option *opt = FindOption(arg);
 
     if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
       if (i + 1 >= argc) {
         std::cerr << "Error: Missing value for " << arg << std::endl;
-        return false;
+        return ParseResult::Failed;
       }
 
       std::string value = argv[++i];
@@ -716,26 +746,26 @@ private:
           opt->allowed.find(value) == opt->allowed.end()) {
         std::cerr << "Error: Invalid value '" << value << "' for " << arg
                   << std::endl;
-        return false;
+        return ParseResult::Failed;
       }
 
       parsedArgs[opt->id].push_back(value);
-      return true;
+      return ParseResult::Success;
     }
 
-    return false;
+    return ParseResult::NotAnOption;
   }
 
   /**
    * @brief Parse equals join format options (--option=value or -option=value
    * for FEAT_SHORT)
    * @param arg The argument string
-   * @return true if successfully parsed as equals join format
+   * @return ParseResult indicating success, failure, or not this type
    */
-  bool ParseEqJoin(const std::string &arg) {
+  ParseResult ParseEqJoin(const std::string &arg) {
     size_t eqPos = arg.find('=');
     if (eqPos == std::string::npos) {
-      return false;
+      return ParseResult::NotAnOption;
     }
 
     std::string namePart;
@@ -761,23 +791,23 @@ private:
           opt->allowed.find(value) == opt->allowed.end()) {
         std::cerr << "Error: Invalid value '" << value << "' for " << arg
                   << std::endl;
-        return false;
+        return ParseResult::Failed;
       }
 
       parsedArgs[opt->id].push_back(value);
-      return true;
+      return ParseResult::Success;
     }
 
-    return false;
+    return ParseResult::NotAnOption;
   }
 
   /**
    * @brief Parse joined format options (--optionvalue or -lvalue for short
    * options)
    * @param arg The argument string
-   * @return true if successfully parsed as joined format
+   * @return ParseResult indicating success, failure, or not this type
    */
-  bool ParseJoined(const std::string &arg) {
+  ParseResult ParseJoined(const std::string &arg) {
     // Try short option format first: -Ivalue, -Lcuda, etc.
     if (arg.size() > 2 && arg[0] == '-' && arg[1] != '-') {
       std::string shortName = arg.substr(1, 1);
@@ -789,11 +819,11 @@ private:
             opt->allowed.find(value) == opt->allowed.end()) {
           std::cerr << "Error: Invalid value '" << value << "' for " << arg
                     << std::endl;
-          return false;
+          return ParseResult::Failed;
         }
 
         parsedArgs[opt->id].push_back(value);
-        return true;
+        return ParseResult::Success;
       }
     }
 
@@ -811,11 +841,11 @@ private:
                 option.allowed.find(value) == option.allowed.end()) {
               std::cerr << "Error: Invalid value '" << value << "' for " << arg
                         << std::endl;
-              return false;
+              return ParseResult::Failed;
             }
 
             parsedArgs[option.id].push_back(value);
-            return true;
+            return ParseResult::Success;
           }
 
           // Also try with normalized name
@@ -829,11 +859,11 @@ private:
                 option.allowed.find(value) == option.allowed.end()) {
               std::cerr << "Error: Invalid value '" << value << "' for " << arg
                         << std::endl;
-              return false;
+              return ParseResult::Failed;
             }
 
             parsedArgs[option.id].push_back(value);
-            return true;
+            return ParseResult::Success;
           }
         }
       }
@@ -862,11 +892,11 @@ private:
                   targetOpt->allowed.find(value) == targetOpt->allowed.end()) {
                 std::cerr << "Error: Invalid value '" << value << "' for "
                           << arg << std::endl;
-                return false;
+                return ParseResult::Failed;
               }
 
               parsedArgs[targetOpt->id].push_back(value);
-              return true;
+              return ParseResult::Success;
             }
 
             // Try short alias
@@ -881,11 +911,11 @@ private:
                         targetOpt->allowed.end()) {
                   std::cerr << "Error: Invalid value '" << value << "' for "
                             << arg << std::endl;
-                  return false;
+                  return ParseResult::Failed;
                 }
 
                 parsedArgs[targetOpt->id].push_back(value);
-                return true;
+                return ParseResult::Success;
               }
             }
           }
@@ -893,7 +923,7 @@ private:
       }
     }
 
-    return false;
+    return ParseResult::NotAnOption;
   }
 
   /**
