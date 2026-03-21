@@ -15,7 +15,11 @@
   F(General, save_temps, save_temps, "Do not delete intermediate files.",      \
     FLAG, {})                                                                  \
   F(Frontend, std, std, "Assume that the input sources are for <standard>.",   \
-    EQ_JOIN, {})
+    EQ_JOIN, {})                                                               \
+  F(Frontend, include, I, "Include path.", SEPARATE | JOINED, {})              \
+  F(Backend, O, O, "Optimization level.", SEPARATE | JOINED,                   \
+    {"0", "1", "2", "3"})                                                      \
+  F(Backend, internel, , "Internal option", FLAG | HIDDEN, {})
 
 #define Alias(A) A(keep, keep, save_temps)
 

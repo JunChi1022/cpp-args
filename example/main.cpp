@@ -7,22 +7,27 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-
   if (Parser.HasArg(OPT_h)) {
     Parser.PrintHelp();
     return 0;
   }
 
-  std::cout << "Render all recevied options:" << std::endl;
+  std::cout << "Render all recevied options]:" << std::endl;
   for (int Opt = 0; Opt < MyApp::MyApp_COUNT; ++Opt) {
     if (Parser.HasArg(Opt)) {
-        std::vector<std::string> Render;
-        Parser.Render(Opt, Render);
-        for (const auto &R : Render) {
-            std::cout << R << " ";
-        }
-        std::cout << std::endl;
+      std::vector<std::string> Render;
+      Parser.Render(Opt, Render);
+      std::cout << "\t";
+      for (const auto &R : Render) {
+        std::cout << R << " ";
+      }
+      std::cout << std::endl;
     }
+  }
+
+  std::cout << "Inputs:" << std::endl;
+  for (const auto &Input : Parser.GetInputs()) {
+    std::cout << "\t" << Input << std::endl;
   }
 
   return 0;
