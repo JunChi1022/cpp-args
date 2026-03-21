@@ -26,8 +26,8 @@ TEST(TestSimilarOption_BasicTypo) {
 
   // Test with a typo: "verbos" instead of "verbose"
   std::string suggestion = parser.FindSimilarOption("--verbos");
-  assert(suggestion == "--verbose");
   std::cout << "Suggestion for '--verbos': " << suggestion << std::endl;
+  assert(suggestion == "--verbose");
 }
 
 // Test basic typo detection- short option

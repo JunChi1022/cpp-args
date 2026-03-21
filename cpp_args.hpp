@@ -260,15 +260,6 @@ public:
 
     // Extract the name part (without prefix and potential value)
     std::string cleanInput = input;
-    std::string prefix = "-";
-
-    if (input.find("--") == 0) {
-      cleanInput = input.substr(2);
-      prefix = "--";
-    } else if (input.find("-") == 0) {
-      cleanInput = input.substr(1);
-      prefix = "-";
-    }
 
     // Remove any joined value (after '=' or attached to short option)
     size_t eqPos = cleanInput.find('=');
@@ -285,28 +276,27 @@ public:
       int distance;
       std::string candidate;
 
-      // For short options (single character), use short name
-      if (cleanInput.length() == 1 && !opt.shortName.empty()) {
-        distance = LevenshteinDistance(normInput, opt.shortName);
-        candidate = "-" + opt.shortName;
+      // For long options, compare against normalized long name
+      std::string normLongName;
+      if (opt.HasFeature(Option::FEAT_SHORT)) {
+        normLongName = "-" + Option::Normalize(opt.longName);
       } else {
-        // For long options, compare against normalized long name
-        std::string normLongName = Option::Normalize(opt.longName);
-        distance = LevenshteinDistance(normInput, normLongName);
-        if (opt.HasFeature(Option::FEAT_SHORT)) {
-          candidate = "-" + normLongName;
-        } else {
-          candidate = "--" + normLongName;
-        }
+        normLongName = "--" + Option::Normalize(opt.longName);
+      }
+      distance = LevenshteinDistance(normInput, normLongName);
+      candidate = normLongName;
 
-        // Also consider short name if it exists and might be a better match
-        if (!opt.shortName.empty()) {
-          int shortDistance = LevenshteinDistance(normInput, opt.shortName);
-          if (shortDistance < distance) {
-            distance = shortDistance;
-            candidate = "-" + opt.shortName;
-          }
+      // Also consider short name if it exists and might be a better match
+      if (!opt.shortName.empty()) {
+        int shortDistance = LevenshteinDistance(normInput, "-" + opt.shortName);
+        if (shortDistance < distance) {
+          distance = shortDistance;
+          candidate = "-" + opt.shortName;
         }
+      }
+
+      if (opt.HasFeature(Option::FEAT_EQ_JOIN)) {
+        candidate += "=";
       }
 
       if (distance < minDistance) {
@@ -510,10 +500,11 @@ private:
       brief = "--" + Option::Normalize(opt->longName);
     }
 
-    if (opt->feature == Option::FEAT_FLAG) {
+    if (opt->HasFeature(Option::FEAT_FLAG)) {
       brief += " [flag]";
-    } else if (opt->feature == Option::FEAT_JOINED) {
-      brief += " [joined]";
+    }
+    if (opt->HasFeature(Option::FEAT_EQ_JOIN)) {
+      brief += "=";
     }
 
     if (!opt->allowed.empty()) {
@@ -532,7 +523,7 @@ private:
     std::cout << std::left << std::setw(wrappedWidth - 30) << brief;
 
     if (!opt->shortName.empty()) {
-      std::cout << "(-" << opt->shortName << ")";
+      std::cout << "(-" << Option::Normalize(opt->shortName) << ")";
     }
     std::cout << std::endl;
 
