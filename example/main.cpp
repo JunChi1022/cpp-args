@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  std::cout << "Render all recevied options]:" << std::endl;
+  std::cout << "[Render all recevied options]:" << std::endl;
   for (int Opt = 0; Opt < MyApp::MyApp_COUNT; ++Opt) {
     if (Parser.HasArg(Opt)) {
       std::vector<std::string> Render;
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  std::cout << "Inputs:" << std::endl;
+  std::cout << "[Inputs]:" << std::endl;
   for (const auto &Input : Parser.GetInputs()) {
     std::cout << "\t" << Input << std::endl;
   }

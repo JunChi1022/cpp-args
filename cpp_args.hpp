@@ -792,7 +792,8 @@ private:
     if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
       if (!opt->allowed.empty() &&
           opt->allowed.find(value) == opt->allowed.end()) {
-        std::cerr << "Error: Invalid value '" << value << "' for " << arg
+        std::string optionName = "--" + opt->longName;
+        std::cerr << "Error: Invalid value '" << value << "' for " << optionName
                   << std::endl;
         return ParseResult::Failed;
       }
@@ -820,8 +821,9 @@ private:
       if (opt && opt->HasFeature(Option::FEAT_JOINED)) {
         if (!opt->allowed.empty() &&
             opt->allowed.find(value) == opt->allowed.end()) {
-          std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                    << std::endl;
+          std::string optionName = "-" + opt->shortName;
+          std::cerr << "Error: Invalid value '" << value << "' for "
+                    << optionName << std::endl;
           return ParseResult::Failed;
         }
 
@@ -842,8 +844,9 @@ private:
 
             if (!option.allowed.empty() &&
                 option.allowed.find(value) == option.allowed.end()) {
-              std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                        << std::endl;
+              std::string optionName = "--" + option.longName;
+              std::cerr << "Error: Invalid value '" << value << "' for "
+                        << optionName << std::endl;
               return ParseResult::Failed;
             }
 
@@ -860,8 +863,9 @@ private:
 
             if (!option.allowed.empty() &&
                 option.allowed.find(value) == option.allowed.end()) {
-              std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                        << std::endl;
+              std::string optionName = "--" + option.longName;
+              std::cerr << "Error: Invalid value '" << value << "' for "
+                        << optionName << std::endl;
               return ParseResult::Failed;
             }
 
@@ -893,8 +897,9 @@ private:
 
               if (!targetOpt->allowed.empty() &&
                   targetOpt->allowed.find(value) == targetOpt->allowed.end()) {
+                std::string optionName = "--" + targetOpt->longName;
                 std::cerr << "Error: Invalid value '" << value << "' for "
-                          << arg << std::endl;
+                          << optionName << std::endl;
                 return ParseResult::Failed;
               }
 
@@ -912,8 +917,9 @@ private:
                 if (!targetOpt->allowed.empty() &&
                     targetOpt->allowed.find(value) ==
                         targetOpt->allowed.end()) {
+                  std::string optionName = "-" + targetOpt->shortName;
                   std::cerr << "Error: Invalid value '" << value << "' for "
-                            << arg << std::endl;
+                            << optionName << std::endl;
                   return ParseResult::Failed;
                 }
 
