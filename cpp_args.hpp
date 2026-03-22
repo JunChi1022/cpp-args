@@ -204,6 +204,18 @@ public:
   bool HasArg(int id) const { return parsedArgs.find(id) != parsedArgs.end(); }
 
   /**
+   * @brief Check if any of the specified options are present
+   * @param first The first option ID
+   * @param args Additional option IDs to check
+   * @return true if any of the specified options are present, false otherwise
+   */
+  template <typename... Args> bool HasArg(int first, Args... args) const {
+    if (HasArg(first))
+      return true;
+    return sizeof...(args) > 0 && HasArg(args...);
+  }
+
+  /**
    * @brief Get the value of an option (returns last value if specified multiple
    * times)
    * @param id The option enum ID (e.g., OPT_port)
