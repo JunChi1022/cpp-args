@@ -864,6 +864,23 @@ private:
     }
 
     if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
+      // Check if value is empty (e.g., --option=)
+      if (value.empty()) {
+        // Normalize the argument name for consistent error messages
+        std::string normalizedArg = arg.substr(0, eqPos);
+        if (normalizedArg.find("--") == 0) {
+          normalizedArg = "--" + Option::Normalize(normalizedArg.substr(2));
+        } else if (normalizedArg.find("-") == 0 && normalizedArg.size() > 1) {
+          std::string shortPrefix = normalizedArg.substr(0, 1);
+          std::string rest = normalizedArg.substr(1);
+          if (rest.find('-') != std::string::npos || rest.length() > 2) {
+            normalizedArg = shortPrefix + Option::Normalize(rest);
+          }
+        }
+        *errStream << "Missing value for " << normalizedArg << std::endl;
+        return ParseResult::Failed;
+      }
+
       if (!CheckOptionValue(opt, value)) {
         return ParseResult::Failed;
       }
@@ -930,6 +947,15 @@ private:
             parsedArgs[option.id].push_back(value);
             return ParseResult::Success;
           }
+
+          // Check if argument matches exactly but without value (missing value
+          // case)
+          if (arg == expectedPrefix || arg == normalizedPrefix) {
+            // Found a JOINED option without a value - report error
+            *errStream << "Missing value for --"
+                       << Option::Normalize(option.longName) << std::endl;
+            return ParseResult::Failed;
+          }
         }
       }
 
@@ -975,9 +1001,33 @@ private:
                 parsedArgs[targetOpt->id].push_back(value);
                 return ParseResult::Success;
               }
+
+              // Check if short alias is used without value
+              if (arg == shortPrefix) {
+                *errStream << "Missing value for -" << alias.shortAliasName
+                           << std::endl;
+                return ParseResult::Failed;
+              }
+            }
+
+            // Check if long alias is used without value
+            if (arg == expectedPrefix) {
+              *errStream << "Missing value for --"
+                         << Option::Normalize(alias.aliasName) << std::endl;
+              return ParseResult::Failed;
             }
           }
         }
+      }
+    }
+
+    // Check for short option without value: -L, -I, etc.
+    if (arg.size() == 2 && arg[0] == '-' && arg[1] != '-') {
+      std::string shortName = arg.substr(1, 1);
+      const Option *opt = FindOptionByShortName(shortName);
+      if (opt && opt->HasFeature(Option::FEAT_JOINED)) {
+        *errStream << "Missing value for -" << shortName << std::endl;
+        return ParseResult::Failed;
       }
     }
 

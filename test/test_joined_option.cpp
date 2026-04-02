@@ -14,6 +14,22 @@ using namespace cppargs;
 
 DEFINE_ARGS(JoinedTest, JoinedTable, TEST_JOINED_OPTIONS)
 
+void TestJoinedShortOption();
+void TestJoinedLongOption();
+void TestMixedJoinedAndRegular();
+void TestJoinedWithInvalidValue();
+void TestJoinedMissingValue();
+
+int main() {
+  TestJoinedShortOption();
+  TestJoinedLongOption();
+  TestMixedJoinedAndRegular();
+  TestJoinedWithInvalidValue();
+  TestJoinedMissingValue();
+  std::cout << "All joined option tests PASSED!" << std::endl;
+  return 0;
+}
+
 void TestJoinedShortOption() {
   std::cout << "Test: Joined Short Option (-Lcuda)... ";
 
@@ -86,11 +102,42 @@ void TestJoinedWithInvalidValue() {
   std::cout << "PASSED" << std::endl;
 }
 
-int main() {
-  TestJoinedShortOption();
-  TestJoinedLongOption();
-  TestMixedJoinedAndRegular();
-  TestJoinedWithInvalidValue();
-  std::cout << "All joined option tests PASSED!" << std::endl;
-  return 0;
+void TestJoinedMissingValue() {
+  std::cout << "Test: Joined Option Missing Value... ";
+
+  // Test short option without value: -L
+  int argc;
+  const char *prog = "./test";
+  std::vector<std::string> args = {prog, "-L"};
+  char **argv = CreateArgs(args, argc);
+
+  ArgumentParser parser(JoinedTable);
+  assert(!parser.Parse(argc, argv));
+  assert(parser.GetUnknown().empty()); // Should not be in unknown list
+
+  CleanupArgs(argv, argc);
+
+  // Test long option without value: --library
+  const char *prog2 = "./test";
+  std::vector<std::string> args2 = {prog2, "--library"};
+  char **argv2 = CreateArgs(args2, argc);
+
+  ArgumentParser parser2(JoinedTable);
+  assert(!parser2.Parse(argc, argv2));
+  assert(parser2.GetUnknown().empty()); // Should not be in unknown list
+
+  CleanupArgs(argv2, argc);
+
+  // Test include option without value: -I
+  const char *prog3 = "./test";
+  std::vector<std::string> args3 = {prog3, "-I"};
+  char **argv3 = CreateArgs(args3, argc);
+
+  ArgumentParser parser3(JoinedTable);
+  assert(!parser3.Parse(argc, argv3));
+  assert(parser3.GetUnknown().empty()); // Should not be in unknown list
+
+  CleanupArgs(argv3, argc);
+
+  std::cout << "PASSED" << std::endl;
 }

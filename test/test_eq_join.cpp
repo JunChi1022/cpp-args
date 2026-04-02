@@ -12,6 +12,7 @@ using namespace cppargs;
 // Test EQ_JOIN feature - equals format only
 void TestEqJoin_Basic();
 void TestEqJoin_WithShort();
+void TestEqJoin_EmptyValue();
 void TestSeparate_NoEquals();
 void TestSeparate_WithSpace();
 void TestSeparateOrEqJoin_BothFormats();
@@ -25,6 +26,7 @@ int main() {
   
   TestEqJoin_Basic();
   TestEqJoin_WithShort();
+  TestEqJoin_EmptyValue();
   TestSeparate_NoEquals();
   TestSeparate_WithSpace();
   TestSeparateOrEqJoin_BothFormats();
@@ -84,6 +86,41 @@ TEST(TestEqJoin_WithShort) {
   
   CleanupArgs(argv, argc);
   std::cout << "EQ_JOIN with short test PASSED" << std::endl;
+  
+  #undef ARGS
+}
+
+// Test EQ_JOIN with empty value (should fail)
+TEST(TestEqJoin_EmptyValue) {
+  #define ARGS(F)                                                            \
+    F(output, o, "Output file", EQ_JOIN, {})                                 \
+    F(input, i, "Input file", SEPARATE | EQ_JOIN, {})
+  
+  DEFINE_ARGS(AppArgs, AppTable, ARGS)
+  
+  // Test --output= (empty value should fail)
+  ArgumentParser parser1(AppTable);
+  int argc1;
+  char **argv1 = CreateArgs({
+    "program",
+    "--output="                      // equals format with empty value
+  }, argc1);
+  
+  assert(!parser1.Parse(argc1, argv1));
+  CleanupArgs(argv1, argc1);
+  
+  // Test -i= (empty value with short option should also fail)
+  ArgumentParser parser2(AppTable);
+  int argc2;
+  char **argv2 = CreateArgs({
+    "program",
+    "-i="                            // short equals format with empty value
+  }, argc2);
+  
+  assert(!parser2.Parse(argc2, argv2));
+  CleanupArgs(argv2, argc2);
+  
+  std::cout << "EQ_JOIN empty value detection test PASSED" << std::endl;
   
   #undef ARGS
 }
