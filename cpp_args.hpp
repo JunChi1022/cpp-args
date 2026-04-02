@@ -581,6 +581,35 @@ private:
     }
   }
 
+  /**
+   * @brief Report an invalid value error for an option
+   * @param opt The option that has the invalid value
+   * @param value The invalid value provided by the user
+   *
+   * This function provides a centralized way to report invalid value errors,
+   * ensuring consistent error message format across all parsing functions.
+   */
+  void ReportInvalidValue(const Option *opt, const std::string &value) const {
+    if (!opt)
+      return;
+
+    // Determine the option prefix based on option features
+    std::string optionName;
+    if (opt->HasFeature(Option::FEAT_SHORT)) {
+      // For FEAT_SHORT options, show both formats
+      optionName = "-" + opt->longName;
+    } else if (!opt->shortName.empty()) {
+      // Show both long and short forms if short name exists
+      optionName = "--" + opt->longName + "(-" + opt->shortName + ")";
+    } else {
+      // Only long name available
+      optionName = "--" + opt->longName;
+    }
+
+    std::cerr << "Error: Invalid value '" << value << "' for " << optionName
+              << std::endl;
+  }
+
   const Option *FindOption(const std::string &input) const {
     if (input.empty())
       return nullptr;
@@ -747,8 +776,7 @@ private:
       std::string value = argv[++i];
       if (!opt->allowed.empty() &&
           opt->allowed.find(value) == opt->allowed.end()) {
-        std::cerr << "Error: Invalid value '" << value << "' for " << arg
-                  << std::endl;
+        ReportInvalidValue(opt, value);
         return ParseResult::Failed;
       }
 
@@ -792,9 +820,7 @@ private:
     if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
       if (!opt->allowed.empty() &&
           opt->allowed.find(value) == opt->allowed.end()) {
-        std::string optionName = "--" + opt->longName;
-        std::cerr << "Error: Invalid value '" << value << "' for " << optionName
-                  << std::endl;
+        ReportInvalidValue(opt, value);
         return ParseResult::Failed;
       }
 
@@ -821,9 +847,7 @@ private:
       if (opt && opt->HasFeature(Option::FEAT_JOINED)) {
         if (!opt->allowed.empty() &&
             opt->allowed.find(value) == opt->allowed.end()) {
-          std::string optionName = "-" + opt->shortName;
-          std::cerr << "Error: Invalid value '" << value << "' for "
-                    << optionName << std::endl;
+          ReportInvalidValue(opt, value);
           return ParseResult::Failed;
         }
 
@@ -844,9 +868,7 @@ private:
 
             if (!option.allowed.empty() &&
                 option.allowed.find(value) == option.allowed.end()) {
-              std::string optionName = "--" + option.longName;
-              std::cerr << "Error: Invalid value '" << value << "' for "
-                        << optionName << std::endl;
+              ReportInvalidValue(&option, value);
               return ParseResult::Failed;
             }
 
@@ -863,9 +885,7 @@ private:
 
             if (!option.allowed.empty() &&
                 option.allowed.find(value) == option.allowed.end()) {
-              std::string optionName = "--" + option.longName;
-              std::cerr << "Error: Invalid value '" << value << "' for "
-                        << optionName << std::endl;
+              ReportInvalidValue(&option, value);
               return ParseResult::Failed;
             }
 
@@ -897,9 +917,7 @@ private:
 
               if (!targetOpt->allowed.empty() &&
                   targetOpt->allowed.find(value) == targetOpt->allowed.end()) {
-                std::string optionName = "--" + targetOpt->longName;
-                std::cerr << "Error: Invalid value '" << value << "' for "
-                          << optionName << std::endl;
+                ReportInvalidValue(targetOpt, value);
                 return ParseResult::Failed;
               }
 
@@ -917,9 +935,7 @@ private:
                 if (!targetOpt->allowed.empty() &&
                     targetOpt->allowed.find(value) ==
                         targetOpt->allowed.end()) {
-                  std::string optionName = "-" + targetOpt->shortName;
-                  std::cerr << "Error: Invalid value '" << value << "' for "
-                            << optionName << std::endl;
+                  ReportInvalidValue(targetOpt, value);
                   return ParseResult::Failed;
                 }
 
