@@ -582,13 +582,34 @@ private:
   }
 
   /**
-   * @brief Report an invalid value error for an option
-   * @param opt The option that has the invalid value
-   * @param value The invalid value provided by the user
+   * @brief Check if an option value is valid and report error if invalid
+   * @param opt The option to check against
+   * @param value The value to validate
+   * @return true if the value is valid (or no validation required), false if
+   * invalid
    *
-   * This function provides a centralized way to report invalid value errors,
-   * ensuring consistent error message format across all parsing functions.
+   * This function provides a centralized way to validate option values,
+   * checking against allowed values set and reporting errors with consistent
+   * formatting across all parsing functions.
    */
+  bool CheckOptionValue(const Option *opt, const std::string &value) const {
+    if (!opt)
+      return false;
+
+    // If no allowed values specified, the value is always valid
+    if (opt->allowed.empty())
+      return true;
+
+    // Check if value is in the allowed set
+    if (opt->allowed.find(value) == opt->allowed.end()) {
+      // Value is invalid - report error
+      ReportInvalidValue(opt, value);
+      return false;
+    }
+
+    return true;
+  }
+
   void ReportInvalidValue(const Option *opt, const std::string &value) const {
     if (!opt)
       return;
@@ -774,9 +795,7 @@ private:
       }
 
       std::string value = argv[++i];
-      if (!opt->allowed.empty() &&
-          opt->allowed.find(value) == opt->allowed.end()) {
-        ReportInvalidValue(opt, value);
+      if (!CheckOptionValue(opt, value)) {
         return ParseResult::Failed;
       }
 
@@ -818,9 +837,7 @@ private:
     }
 
     if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
-      if (!opt->allowed.empty() &&
-          opt->allowed.find(value) == opt->allowed.end()) {
-        ReportInvalidValue(opt, value);
+      if (!CheckOptionValue(opt, value)) {
         return ParseResult::Failed;
       }
 
@@ -845,9 +862,7 @@ private:
 
       const Option *opt = FindOptionByShortName(shortName);
       if (opt && opt->HasFeature(Option::FEAT_JOINED)) {
-        if (!opt->allowed.empty() &&
-            opt->allowed.find(value) == opt->allowed.end()) {
-          ReportInvalidValue(opt, value);
+        if (!CheckOptionValue(opt, value)) {
           return ParseResult::Failed;
         }
 
@@ -866,9 +881,7 @@ private:
               arg.size() > expectedPrefix.size()) {
             std::string value = arg.substr(expectedPrefix.size());
 
-            if (!option.allowed.empty() &&
-                option.allowed.find(value) == option.allowed.end()) {
-              ReportInvalidValue(&option, value);
+            if (!CheckOptionValue(&option, value)) {
               return ParseResult::Failed;
             }
 
@@ -883,9 +896,7 @@ private:
               arg.size() > normalizedPrefix.size()) {
             std::string value = arg.substr(normalizedPrefix.size());
 
-            if (!option.allowed.empty() &&
-                option.allowed.find(value) == option.allowed.end()) {
-              ReportInvalidValue(&option, value);
+            if (!CheckOptionValue(&option, value)) {
               return ParseResult::Failed;
             }
 
@@ -915,9 +926,7 @@ private:
                 arg.size() > expectedPrefix.size()) {
               std::string value = arg.substr(expectedPrefix.size());
 
-              if (!targetOpt->allowed.empty() &&
-                  targetOpt->allowed.find(value) == targetOpt->allowed.end()) {
-                ReportInvalidValue(targetOpt, value);
+              if (!CheckOptionValue(targetOpt, value)) {
                 return ParseResult::Failed;
               }
 
@@ -932,10 +941,7 @@ private:
                   arg.size() > shortPrefix.size()) {
                 std::string value = arg.substr(shortPrefix.size());
 
-                if (!targetOpt->allowed.empty() &&
-                    targetOpt->allowed.find(value) ==
-                        targetOpt->allowed.end()) {
-                  ReportInvalidValue(targetOpt, value);
+                if (!CheckOptionValue(targetOpt, value)) {
                   return ParseResult::Failed;
                 }
 
