@@ -19,7 +19,8 @@
   F(Frontend, include, I, "Include path.", SEPARATE | JOINED, {})              \
   F(Backend, O, O, "Optimization level.", SEPARATE | JOINED,                   \
     {"0", "1", "2", "3"})                                                      \
-  F(Backend, arch, arch, "Arch for compilation", EQ_JOIN, {"x86", "aarch64"})  \
+  F(Backend, cpu_arch, arch, "Arch for compilation", EQ_JOIN,                  \
+    {"x86", "aarch64"})                                                        \
   F(Backend, internel, , "Internal option", FLAG | HIDDEN, {})
 
 #define Alias(A) A(keep, keep, save_temps)

@@ -95,7 +95,7 @@ using AliasMap = std::map<std::string, std::string>;
 class ArgumentParser {
 public:
   explicit ArgumentParser(const OptionTable &table)
-      : optionTable(table), allowUnknown(false) {}
+      : optionTable(table), allowUnknown(false), errStream(&std::cerr) {}
 
   /**
    * @brief Constructor with option groups support
@@ -103,7 +103,19 @@ public:
    * @param groups The option group table
    */
   ArgumentParser(const OptionTable &table, const OptionGroupTable &groups)
-      : optionTable(table), optionGroups(groups), allowUnknown(false) {}
+      : optionTable(table), optionGroups(groups), allowUnknown(false),
+        errStream(&std::cerr) {}
+
+  /**
+   * @brief Set the error message output stream
+   * @param stream Pointer to the output stream (default is std::cerr)
+   *
+   * This allows users to redirect error messages to a custom stream,
+   * such as std::ostringstream for testing or logging purposes.
+   */
+  void SetErrMsgStream(std::ostream *stream) {
+    errStream = stream ? stream : &std::cerr;
+  }
 
   /**
    * @brief Set alias table for option name aliases
@@ -190,10 +202,10 @@ public:
       if (!allowUnknown) {
         std::string suggestion = FindSimilarOption(arg);
         if (!suggestion.empty()) {
-          std::cerr << "Error: Unknown argument '" << arg << "'. Did you mean '"
-                    << suggestion << "'?" << std::endl;
+          *errStream << "Unknown argument '" << arg << "'. Did you mean '"
+                     << suggestion << "'?" << std::endl;
         } else {
-          std::cerr << "Error: Unknown argument '" << arg << "'" << std::endl;
+          *errStream << "Unknown argument '" << arg << "'" << std::endl;
         }
         return false;
       }
@@ -615,20 +627,22 @@ private:
       return;
 
     // Determine the option prefix based on option features
+    // Always use normalized name (with '-' instead of '_')
     std::string optionName;
     if (opt->HasFeature(Option::FEAT_SHORT)) {
       // For FEAT_SHORT options, show both formats
-      optionName = "-" + opt->longName;
+      optionName = "-" + Option::Normalize(opt->longName);
     } else if (!opt->shortName.empty()) {
       // Show both long and short forms if short name exists
-      optionName = "--" + opt->longName + "(-" + opt->shortName + ")";
+      optionName = "--" + Option::Normalize(opt->longName) + "(-" +
+                   Option::Normalize(opt->shortName) + ")";
     } else {
       // Only long name available
-      optionName = "--" + opt->longName;
+      optionName = "--" + Option::Normalize(opt->longName);
     }
 
-    std::cerr << "Error: Invalid value '" << value << "' for " << optionName
-              << std::endl;
+    *errStream << "Invalid value '" << value << "' for " << optionName
+               << std::endl;
   }
 
   const Option *FindOption(const std::string &input) const {
@@ -790,7 +804,20 @@ private:
 
     if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
       if (i + 1 >= argc) {
-        std::cerr << "Error: Missing value for " << arg << std::endl;
+        // Normalize the argument name for consistent error messages
+        std::string normalizedArg = arg;
+        if (normalizedArg.find("--") == 0) {
+          normalizedArg = "--" + Option::Normalize(normalizedArg.substr(2));
+        } else if (normalizedArg.find("-") == 0 && normalizedArg.size() > 2) {
+          // For short options with full name (e.g., -log-lvl), normalize it
+          std::string shortPrefix = normalizedArg.substr(0, 1);
+          std::string rest = normalizedArg.substr(1);
+          // Check if this looks like a long name used with single dash
+          if (rest.find('-') != std::string::npos || rest.length() > 2) {
+            normalizedArg = shortPrefix + Option::Normalize(rest);
+          }
+        }
+        *errStream << "Missing value for " << normalizedArg << std::endl;
         return ParseResult::Failed;
       }
 
@@ -1007,7 +1034,8 @@ private:
       parsedArgs;                  // Support multiple values per option
   std::vector<std::string> inputs; // Positional inputs (non-option arguments)
   std::vector<std::string> unknownArgs; // Unknown options
-  bool allowUnknown; // Whether to allow unknown options without error
+  bool allowUnknown;       // Whether to allow unknown options without error
+  std::ostream *errStream; // Error message output stream (default: std::cerr)
 };
 
 /**
