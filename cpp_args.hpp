@@ -46,7 +46,8 @@ struct Option {
     FEAT_HIDDEN = 8,   // Bit 3: Hidden option (will not be printed in help)
     FEAT_SHORT =
         16, // Bit 4: Long option also accepts single dash (e.g., -help)
-    FEAT_EQ_JOIN = 32 // Bit 5: equals join format support (--option=value)
+    FEAT_EQ_JOIN = 32, // Bit 5: equals join format support (--option=value)
+    FEAT_COMMA_LIST = 64 // Bit 6: comma-separated list support (--option=a,b,c)
   };
 
   int feature; // Changed to int to support bit combinations
@@ -594,6 +595,31 @@ private:
   }
 
   /**
+   * @brief Split a comma-separated string into individual values
+   * @param value The comma-separated string to split
+   * @return Vector of individual values
+   */
+  static std::vector<std::string> SplitCommaList(const std::string &value) {
+    std::vector<std::string> result;
+    std::stringstream ss(value);
+    std::string item;
+    
+    while (std::getline(ss, item, ',')) {
+      // Trim whitespace from each item
+      size_t start = item.find_first_not_of(" \t");
+      size_t end = item.find_last_not_of(" \t");
+      if (start != std::string::npos) {
+        result.push_back(item.substr(start, end - start + 1));
+      } else if (!item.empty()) {
+        // If the item is not empty but has no non-whitespace chars
+        result.push_back(item);
+      }
+    }
+    
+    return result;
+  }
+
+  /**
    * @brief Check if an option value is valid and report error if invalid
    * @param opt The option to check against
    * @param value The value to validate
@@ -603,6 +629,7 @@ private:
    * This function provides a centralized way to validate option values,
    * checking against allowed values set and reporting errors with consistent
    * formatting across all parsing functions.
+   * For COMMA_LIST options, splits by comma and validates each value individually.
    */
   bool CheckOptionValue(const Option *opt, const std::string &value) const {
     if (!opt)
@@ -612,7 +639,19 @@ private:
     if (opt->allowed.empty())
       return true;
 
-    // Check if value is in the allowed set
+    // For COMMA_LIST options, split and validate each value
+    if (opt->HasFeature(Option::FEAT_COMMA_LIST)) {
+      std::vector<std::string> values = SplitCommaList(value);
+      for (const auto &singleValue : values) {
+        if (opt->allowed.find(singleValue) == opt->allowed.end()) {
+          ReportInvalidValue(opt, singleValue);
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // For non-COMMA_LIST options, check the value directly
     if (opt->allowed.find(value) == opt->allowed.end()) {
       // Value is invalid - report error
       ReportInvalidValue(opt, value);
@@ -826,7 +865,16 @@ private:
         return ParseResult::Failed;
       }
 
-      parsedArgs[opt->id].push_back(value);
+      // For COMMA_LIST options, split and store each value separately
+      if (opt->HasFeature(Option::FEAT_COMMA_LIST)) {
+        std::vector<std::string> values = SplitCommaList(value);
+        for (const auto &singleValue : values) {
+          parsedArgs[opt->id].push_back(singleValue);
+        }
+      } else {
+        parsedArgs[opt->id].push_back(value);
+      }
+      
       return ParseResult::Success;
     }
 
@@ -885,7 +933,16 @@ private:
         return ParseResult::Failed;
       }
 
-      parsedArgs[opt->id].push_back(value);
+      // For COMMA_LIST options, split and store each value separately
+      if (opt->HasFeature(Option::FEAT_COMMA_LIST)) {
+        std::vector<std::string> values = SplitCommaList(value);
+        for (const auto &singleValue : values) {
+          parsedArgs[opt->id].push_back(singleValue);
+        }
+      } else {
+        parsedArgs[opt->id].push_back(value);
+      }
+      
       return ParseResult::Success;
     }
 
@@ -1101,6 +1158,10 @@ private:
  * - For both separate and joined: F(name, short_name, help_text, SEPARATE |
  * JOINED, {allowed_values}) Supports all formats: space, equals, and direct
  * attachment
+ * - For comma-separated lists: F(name, short_name, help_text, SEPARATE |
+ * COMMA_LIST, {allowed_values}) Accepts comma-separated values (--option=a,b,c)
+ *   which are split and stored as multiple values. Each value is validated
+ *   against the allowed set individually.
  */
 
 // Kind identifiers for macro usage (using bit flags)
@@ -1111,6 +1172,7 @@ private:
 #define HIDDEN cppargs::Option::FEAT_HIDDEN
 #define SHORT cppargs::Option::FEAT_SHORT
 #define EQ_JOIN cppargs::Option::FEAT_EQ_JOIN
+#define COMMA_LIST cppargs::Option::FEAT_COMMA_LIST
 
 // GENERATE_ENUM takes kind and optional allowed values (ignored for enum
 // generation)

@@ -4,6 +4,7 @@
 #undef HIDDEN
 #undef SHORT
 #undef EQ_JOIN
+#undef COMMA_LIST
 #undef GENERATE_ENUM
 #undef GENERATE_TABLE
 #undef MAKE_ALLOWED
