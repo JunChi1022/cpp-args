@@ -17,7 +17,7 @@ void TestCommaListBasic() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--tags", "debug,info,error"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaListTable);
   assert(parser.Parse(argc, argv));
@@ -49,7 +49,7 @@ void TestCommaListEqJoin() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--levels=debug,warn,error"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaEqTable);
   assert(parser.Parse(argc, argv));
@@ -78,7 +78,7 @@ void TestCommaListWhitespace() {
   const char *prog = "./test";
   // Values with spaces around commas should be trimmed
   std::vector<std::string> args = {prog, "--items", "apple , banana , cherry"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaWsTable);
   assert(parser.Parse(argc, argv));
@@ -106,7 +106,7 @@ void TestCommaListInvalidValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--modes", "fast,invalid,slow"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaInvTable);
   // Should fail because "invalid" is not in allowed values
@@ -128,7 +128,7 @@ void TestCommaListNoValidation() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--values", "abc,def,ghi,jkl"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaNoValTable);
   assert(parser.Parse(argc, argv));
@@ -157,7 +157,7 @@ void TestCommaListSingleValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--single", "two"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaSingleTable);
   assert(parser.Parse(argc, argv));
@@ -184,7 +184,7 @@ void TestCommaListMultipleOccurrences() {
   const char *prog = "./test";
   // Specify the option twice with different comma-separated values
   std::vector<std::string> args = {prog, "--colors", "red,green", "--colors", "blue"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaMultiTable);
   assert(parser.Parse(argc, argv));
@@ -214,7 +214,7 @@ void TestCommaListWithShort() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-flags=a,b,c"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(CommaShortTable);
   assert(parser.Parse(argc, argv));

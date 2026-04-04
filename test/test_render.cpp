@@ -25,7 +25,7 @@ TEST(TestRender_SeparateOptions) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({"program", "--port", "8080", "--output", "result.txt"}, argc);
+  const char **argv = CreateArgs({"program", "--port", "8080", "--output", "result.txt"}, argc);
   
   assert(parser.Parse(argc, argv));
   
@@ -58,7 +58,7 @@ TEST(TestRender_JoinedOptions) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({"program", "-Lcuda", "-I/usr/include"}, argc);
+  const char **argv = CreateArgs({"program", "-Lcuda", "-I/usr/include"}, argc);
   
   assert(parser.Parse(argc, argv));
   
@@ -89,7 +89,7 @@ TEST(TestRender_SeparateOrJoinedOptions) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "-I/usr/include",           // joined form
     "-D", "DEBUG",              // separate form
@@ -131,7 +131,7 @@ TEST(TestRender_ShortFeatureOptions) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "-help",                        // single dash flag
     "-verbose",                     // single dash flag
@@ -171,7 +171,7 @@ TEST(TestRender_MultipleValues) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "-c", "config1.txt",
     "-c", "config2.txt",
@@ -224,7 +224,7 @@ TEST(TestRender_FlagOptions) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "--verbose",
     "-d",
@@ -262,7 +262,7 @@ TEST(TestRender_OptionNotSpecified) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({"program", "--port", "8080"}, argc);
+  const char **argv = CreateArgs({"program", "--port", "8080"}, argc);
   
   assert(parser.Parse(argc, argv));
   
@@ -294,7 +294,7 @@ TEST(TestRender_ComplexScenario) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "-I/usr/include",              // joined
     "-I", "/usr/local/include",    // separate
@@ -366,7 +366,7 @@ TEST(TestRender_ParseEquivalence) {
   ArgumentParser parser1(AppTable);
   
   int argc1;
-  char **argv1 = CreateArgs({
+  const char **argv1 = CreateArgs({
     "program",
     "-I/usr/include",
     "-I", "/usr/local/include",
@@ -393,7 +393,7 @@ TEST(TestRender_ParseEquivalence) {
   ArgumentParser parser2(AppTable);
   
   int argc2;
-  char **argv2 = CreateArgs(renderedArgs, argc2);
+  const char **argv2 = CreateArgs(renderedArgs, argc2);
   
   assert(parser2.Parse(argc2, argv2));
   

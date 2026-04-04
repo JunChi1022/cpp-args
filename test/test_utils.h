@@ -8,12 +8,12 @@
 /**
  * @brief Helper to create argc/argv from string array
  */
-inline char **CreateArgs(const std::vector<std::string> &args, int &argc) {
+inline const char **CreateArgs(const std::vector<std::string> &args, int &argc) {
   argc = args.size();
-  char **argv = new char *[argc];
+  const char **argv = new const char *[argc];
   for (int i = 0; i < argc; ++i) {
     argv[i] = new char[args[i].size() + 1];
-    strcpy(argv[i], args[i].c_str());
+    strcpy(const_cast<char*>(argv[i]), args[i].c_str());
   }
   return argv;
 }
@@ -21,9 +21,9 @@ inline char **CreateArgs(const std::vector<std::string> &args, int &argc) {
 /**
  * @brief Helper to cleanup args
  */
-inline void CleanupArgs(char **argv, int argc) {
+inline void CleanupArgs(const char **argv, int argc) {
   for (int i = 0; i < argc; ++i) {
-    delete[] argv[i];
+    delete[] const_cast<char*>(argv[i]);
   }
   delete[] argv;
 }

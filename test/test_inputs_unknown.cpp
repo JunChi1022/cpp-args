@@ -19,7 +19,7 @@ void TestPositionalInputs() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-o", "out.txt", "input1.txt", "input2.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(InputTable);
   assert(parser.Parse(argc, argv));
@@ -42,7 +42,7 @@ void TestMixedOptionsAndInputs() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "file1.txt", "-v", "-Lcuda", "file2.txt", "file3.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(InputTable);
   assert(parser.Parse(argc, argv));
@@ -67,7 +67,7 @@ void TestUnknownOptionNotAllowed() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--unknown-opt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(InputTable);
   // Should fail because unknown option is not allowed by default
@@ -87,7 +87,7 @@ void TestUnknownOptionAllowed() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--fake-opt", "input.txt", "-v"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(InputTable);
   parser.SetAllowUnknown(true);
@@ -116,7 +116,7 @@ void TestInputsBeforeOptions() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "input1.txt", "-o", "out.txt", "input2.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(InputTable);
   assert(parser.Parse(argc, argv));

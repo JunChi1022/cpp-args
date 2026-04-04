@@ -25,7 +25,7 @@ void TestJoined_ShortOption() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-Lcuda"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -42,7 +42,7 @@ void TestJoined_LongWithEquals_ShouldFail() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--library=cuda"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(!parser.Parse(argc, argv));
@@ -57,7 +57,7 @@ void TestJoined_MultipleValues() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-Lcuda", "-Lpthread", "-Lstdc++"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -79,7 +79,7 @@ void TestJoined_LongOptionWithValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--librarycuda", "--librarystdc++"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -100,7 +100,7 @@ void TestJoined_ShortAndLongMixed() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-Lcuda", "--librarystdc++", "-Lpthread"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -126,7 +126,7 @@ void TestSeparateOrJoined_SpaceSeparated() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-I", "/usr/include"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -143,7 +143,7 @@ void TestSeparateOrJoined_ShortWithEquals() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-I=/usr/include"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -160,7 +160,7 @@ void TestSeparateOrJoined_ShortJoined() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-I/usr/include"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -182,7 +182,7 @@ void TestSeparateOrJoined_LongWithEquals() {
   };
 
   for (const auto& args : testCases) {
-    char **argv = CreateArgs(args, argc);
+    const char **argv = CreateArgs(args, argc);
     ArgumentParser parser(ParsingTestTable);
     assert(parser.Parse(argc, argv));
     assert(parser.HasArg(OPT_include));
@@ -203,7 +203,7 @@ void TestRegularOption_SpaceSeparated() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-o", "output.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -220,7 +220,7 @@ void TestRegularOption_ShortWithEquals() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-o=output.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -237,7 +237,7 @@ void TestRegularOption_LongWithEquals() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--output=output.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -254,7 +254,7 @@ void TestRegularOption_LongSpaceSeparated() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--output", "output.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -271,7 +271,7 @@ void TestRegularOption_WithNumericValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-p=8080"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -303,7 +303,7 @@ void TestMixed_AllKinds() {
     "--port=8080",               // SEPARATE long with =
     "-v"                         // FLAG
   };
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(parser.Parse(argc, argv));
@@ -349,7 +349,7 @@ void TestJoined_InvalidValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-Linvalid"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(!parser.Parse(argc, argv));
@@ -364,7 +364,7 @@ void TestRegularOption_MissingValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-o"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(ParsingTestTable);
   assert(!parser.Parse(argc, argv));

@@ -19,7 +19,7 @@ void TestUnderscoreInput() {
   const char *prog = "./test";
   // User can also input --log_lvl (with underscore)
   std::vector<std::string> args = {prog, "--log_lvl", "info"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));

@@ -19,7 +19,7 @@ void TestUnderscoreToDashConversion() {
   const char *prog = "./test";
   // User can input --log-lvl (with dash) even though macro uses log_lvl
   std::vector<std::string> args = {prog, "--log-lvl", "debug"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));

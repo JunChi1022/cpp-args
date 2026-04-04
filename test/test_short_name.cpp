@@ -18,7 +18,7 @@ void TestShortName() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-p", "9000", "-o", "result.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));
@@ -46,7 +46,7 @@ void TestSingleDashLongOption() {
   const char *argv[] = {"program", "-help", "-verbose"};
   int argc = 3;
 
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, (argv));
   assert(result);
 
   assert(parser.HasArg((int)OPT_help));
@@ -70,7 +70,7 @@ void TestSingleDashLongOptionWithValue() {
   const char *argv[] = {"program", "-output=result.txt", "-level", "debug"};
   int argc = 4;
 
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, (argv));
   assert(result);
 
   assert(parser.HasArg((int)OPT_output));
@@ -95,7 +95,7 @@ void TestMixedSingleAndDoubleDash() {
   const char *argv[] = {"program", "-help", "--version"};
   int argc = 3;
 
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, (argv));
   assert(result);
 
   assert(parser.HasArg((int)OPT_help));
@@ -117,7 +117,7 @@ void TestShortNameRequiresSingleDash() {
   // Test that -p works (single dash)
   const char *argv1[] = {"program", "-p", "8080"};
   int argc1 = 3;
-  bool result1 = parser.Parse(argc1, const_cast<char **>(argv1));
+  bool result1 = parser.Parse(argc1, (argv1));
   assert(result1);
   assert(parser.HasArg((int)OPT_port));
   assert(parser.GetArgValue((int)OPT_port) == "8080");
@@ -128,7 +128,7 @@ void TestShortNameRequiresSingleDash() {
   // Test that --p does NOT work (double dash should not match short name)
   const char *argv2[] = {"program", "--p", "8080"};
   int argc2 = 3;
-  bool result2 = parser.Parse(argc2, const_cast<char **>(argv2));
+  bool result2 = parser.Parse(argc2, (argv2));
   // This should fail because --p is not a valid long option name
   assert(!result2 || !parser.HasArg((int)OPT_port));
 
@@ -138,7 +138,7 @@ void TestShortNameRequiresSingleDash() {
   // Test that -v works (single dash for flag)
   const char *argv3[] = {"program", "-v"};
   int argc3 = 2;
-  bool result3 = parser.Parse(argc3, const_cast<char **>(argv3));
+  bool result3 = parser.Parse(argc3, (argv3));
   assert(result3);
   assert(parser.HasArg((int)OPT_verbose));
 
@@ -149,7 +149,7 @@ void TestShortNameRequiresSingleDash() {
   // flag)
   const char *argv4[] = {"program", "--v"};
   int argc4 = 2;
-  bool result4 = parser.Parse(argc4, const_cast<char **>(argv4));
+  bool result4 = parser.Parse(argc4, (argv4));
   // This should fail or not mark verbose as present
   assert(!result4 || !parser.HasArg((int)OPT_verbose));
 
@@ -173,7 +173,7 @@ void TestShortAliasRequiresSingleDash() {
   // Test that -o works (original short name with single dash)
   const char *argv1[] = {"program", "-o", "file.txt"};
   int argc1 = 3;
-  bool result1 = parser.Parse(argc1, const_cast<char **>(argv1));
+  bool result1 = parser.Parse(argc1, (argv1));
   assert(result1);
   assert(parser.HasArg((int)OPT_output));
   assert(parser.GetArgValue((int)OPT_output) == "file.txt");
@@ -185,7 +185,7 @@ void TestShortAliasRequiresSingleDash() {
   // Test that -O works (short alias with single dash)
   const char *argv2[] = {"program", "-O", "file2.txt"};
   int argc2 = 3;
-  bool result2 = parser.Parse(argc2, const_cast<char **>(argv2));
+  bool result2 = parser.Parse(argc2, (argv2));
   assert(result2);
   assert(parser.HasArg((int)OPT_output));
   assert(parser.GetArgValue((int)OPT_output) == "file2.txt");
@@ -197,7 +197,7 @@ void TestShortAliasRequiresSingleDash() {
   // Test that --O does NOT work (short alias with double dash should fail)
   const char *argv3[] = {"program", "--O", "file3.txt"};
   int argc3 = 3;
-  bool result3 = parser.Parse(argc3, const_cast<char **>(argv3));
+  bool result3 = parser.Parse(argc3, (argv3));
   // This should fail or be treated as unknown option
   assert(!result3 || !parser.HasArg((int)OPT_output));
 
@@ -221,7 +221,7 @@ void TestLongAliasRequiresDoubleDash() {
   // Test that --keep works (original long name with double dash)
   const char *argv1[] = {"program", "--keep", "true"};
   int argc1 = 3;
-  bool result1 = parser.Parse(argc1, const_cast<char **>(argv1));
+  bool result1 = parser.Parse(argc1, (argv1));
   assert(result1);
   assert(parser.HasArg((int)OPT_keep));
   assert(parser.GetArgValue((int)OPT_keep) == "true");
@@ -233,7 +233,7 @@ void TestLongAliasRequiresDoubleDash() {
   // Test that --save_temps works (long alias with double dash)
   const char *argv2[] = {"program", "--save_temps", "true"};
   int argc2 = 3;
-  bool result2 = parser.Parse(argc2, const_cast<char **>(argv2));
+  bool result2 = parser.Parse(argc2, (argv2));
   assert(result2);
   assert(parser.HasArg((int)OPT_keep));
   assert(parser.GetArgValue((int)OPT_keep) == "true");
@@ -246,7 +246,7 @@ void TestLongAliasRequiresDoubleDash() {
   // fail)
   const char *argv3[] = {"program", "-save_temps", "true"};
   int argc3 = 3;
-  bool result3 = parser.Parse(argc3, const_cast<char **>(argv3));
+  bool result3 = parser.Parse(argc3, (argv3));
   // This should fail or be treated as unknown option
   assert(!result3 || !parser.HasArg((int)OPT_keep));
 
@@ -268,7 +268,7 @@ void TestShortNameNormalization() {
   // normalized to "o-f" and "l-l"
   const char *argv1[] = {"program", "-o_f", "result.txt"};
   int argc1 = 3;
-  bool result1 = parser.Parse(argc1, const_cast<char **>(argv1));
+  bool result1 = parser.Parse(argc1, (argv1));
   assert(result1);
   assert(parser.HasArg((int)OPT_output_file));
   assert(parser.GetArgValue((int)OPT_output_file) == "result.txt");
@@ -279,7 +279,7 @@ void TestShortNameNormalization() {
   // Test with dash format in short name (should also work after normalization)
   const char *argv2[] = {"program", "-o-f", "output.dat"};
   int argc2 = 3;
-  bool result2 = parser.Parse(argc2, const_cast<char **>(argv2));
+  bool result2 = parser.Parse(argc2, (argv2));
   assert(result2);
   assert(parser.HasArg((int)OPT_output_file));
   assert(parser.GetArgValue((int)OPT_output_file) == "output.dat");
@@ -290,7 +290,7 @@ void TestShortNameNormalization() {
   // Test another short name with underscore
   const char *argv3[] = {"program", "-l_l", "debug"};
   int argc3 = 3;
-  bool result3 = parser.Parse(argc3, const_cast<char **>(argv3));
+  bool result3 = parser.Parse(argc3, (argv3));
   assert(result3);
   assert(parser.HasArg((int)OPT_log_level));
   assert(parser.GetArgValue((int)OPT_log_level) == "debug");
@@ -301,7 +301,7 @@ void TestShortNameNormalization() {
   // Test with dash format
   const char *argv4[] = {"program", "-l-l", "info"};
   int argc4 = 3;
-  bool result4 = parser.Parse(argc4, const_cast<char **>(argv4));
+  bool result4 = parser.Parse(argc4, (argv4));
   assert(result4);
   assert(parser.HasArg((int)OPT_log_level));
   assert(parser.GetArgValue((int)OPT_log_level) == "info");

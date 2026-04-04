@@ -18,7 +18,7 @@ void TestUnknownArgument() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--unknown", "value"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   // Should fail because --unknown is not defined
@@ -36,7 +36,7 @@ void TestInvalidValueNotUnknown() {
   const char *prog = "./test";
   // Use an allowed value first to establish baseline
   std::vector<std::string> args1 = {prog, "--log-lvl", "debug"};
-  char **argv1 = CreateArgs(args1, argc);
+  const char **argv1 = CreateArgs(args1, argc);
 
   ArgumentParser parser1(TestTable);
   assert(parser1.Parse(argc, argv1));
@@ -49,7 +49,7 @@ void TestInvalidValueNotUnknown() {
 
   // Now test with invalid value - should fail but NOT add to unknown list
   std::vector<std::string> args2 = {prog, "--log-lvl", "invalid_level"};
-  char **argv2 = CreateArgs(args2, argc);
+  const char **argv2 = CreateArgs(args2, argc);
 
   ArgumentParser parser2(TestTable);
   // Should fail because "invalid_level" is not in allowed values
@@ -71,7 +71,7 @@ void TestMissingValueNotUnknown() {
   const char *prog = "./test";
   // Missing value for --port (SEPARATE option requires value)
   std::vector<std::string> args = {prog, "--port"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   // Should fail because --port requires a value
@@ -97,7 +97,7 @@ void TestEqJoinInvalidValueNotUnknown() {
   const char *prog = "./test";
   // Using equals join format with invalid value
   std::vector<std::string> args = {prog, "--log-lvl=trace"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(EqJoinTable);
   // Should fail because "trace" is not in allowed values

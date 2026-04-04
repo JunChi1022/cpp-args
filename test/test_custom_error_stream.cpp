@@ -19,7 +19,7 @@ void TestCustomErrorStream() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--log-lvl", "invalid"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   
@@ -54,7 +54,7 @@ void TestDefaultErrorStream() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--log-lvl", "invalid"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   // Don't set custom stream - should use std::cerr by default
@@ -72,7 +72,7 @@ void TestMissingValueError() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--log-lvl"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   
@@ -106,7 +106,7 @@ void TestUnknownArgError() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--unknown-option"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   
@@ -132,7 +132,7 @@ void TestNullErrorStream() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--log-lvl", "invalid"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   

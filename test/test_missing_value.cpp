@@ -18,7 +18,7 @@ void TestMissingValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--port"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   // Should fail because --port requires a value

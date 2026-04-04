@@ -140,11 +140,20 @@ public:
   }
 
   /**
+   * @brief reset parsed result.
+   */
+  void Reset() {
+    parsedArgs.clear();
+    inputs.clear();
+    unknownArgs.clear();
+  }
+
+  /**
    * @brief Fuzzy parsing: treats "_" and "-" as identical.
    * Supports joined options where value is attached to the option name
    * Remaining arguments after known options are treated as inputs
    */
-  bool Parse(int argc, char *argv[]) {
+  bool Parse(int argc, const char **argv) {
     for (int i = 1; i < argc; ++i) {
       std::string arg = argv[i];
 
@@ -839,7 +848,7 @@ private:
    * @return ParseResult indicating success, failure, or not this type
    */
   ParseResult ParseSeparate(const std::string &arg, int &i, int argc,
-                            char *argv[]) {
+                            const char **argv) {
     const Option *opt = FindOption(arg);
 
     if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {

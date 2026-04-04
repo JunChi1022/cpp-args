@@ -26,7 +26,7 @@ TEST(TestMultipleValues_SingleOption) {
   
   // Test specifying the same option multiple times
   int argc;
-  char **argv = CreateArgs({"program", "-c", "config1.txt", 
+  const char **argv = CreateArgs({"program", "-c", "config1.txt", 
                            "-c", "config2.txt", 
                            "-c", "config3.txt"}, argc);
   
@@ -63,7 +63,7 @@ TEST(TestMultipleValues_LongOption) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({"program", 
+  const char **argv = CreateArgs({"program", 
                            "--input", "file1.txt",
                            "--input", "file2.txt",
                            "--output", "out.txt",
@@ -104,7 +104,7 @@ TEST(TestMultipleValues_Flag) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({"program", "-v", "-v", "-v", "-d"}, argc);
+  const char **argv = CreateArgs({"program", "-v", "-v", "-v", "-d"}, argc);
   
   bool result = parser.Parse(argc, argv);
   assert(result);
@@ -138,7 +138,7 @@ TEST(TestMultipleValues_Mixed) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({"program",
+  const char **argv = CreateArgs({"program",
                            "-H", "localhost",
                            "-p", "8080",
                            "-t", "tag1",
@@ -191,7 +191,7 @@ TEST(TestMultipleValues_BackwardCompatibility) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({"program", "-f", "single.txt"}, argc);
+  const char **argv = CreateArgs({"program", "-f", "single.txt"}, argc);
   
   bool result = parser.Parse(argc, argv);
   assert(result);

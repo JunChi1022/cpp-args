@@ -27,7 +27,7 @@ void TestFlagOnly() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--help", "-v"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(FlagTable1);
   assert(parser.Parse(argc, argv));
@@ -44,7 +44,7 @@ void TestMixedFlagsAndOptions() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--help2", "--port2", "8080", "-v"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(MixedTable2);
   assert(parser.Parse(argc, argv));
@@ -64,7 +64,7 @@ void TestFlagWithShortName() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-h", "--verbose"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(FlagTable1);
   assert(parser.Parse(argc, argv));

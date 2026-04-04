@@ -33,7 +33,7 @@ TEST(TestOptionGroup_BasicGroup) {
   
   // Test that options are parsed correctly
   int argc;
-  char **argv = CreateArgs({"program", "--host", "localhost", "--port", "8080", 
+  const char **argv = CreateArgs({"program", "--host", "localhost", "--port", "8080", 
                            "--db", "mysql", "--cache", "redis"}, argc);
   
   bool result = parser.Parse(argc, argv);
@@ -101,7 +101,7 @@ TEST(TestOptionGroup_MixedGroups) {
   
   // Test parsing
   int argc;
-  char **argv = CreateArgs({"program", "-v", "--host", "localhost", "-p", "9090"}, argc);
+  const char **argv = CreateArgs({"program", "-v", "--host", "localhost", "-p", "9090"}, argc);
   
   bool result = parser.Parse(argc, argv);
   assert(result);
@@ -189,7 +189,7 @@ TEST(TestOptionGroup_ThreeGroups) {
   ArgumentParser parser(AppTable, AppTableGroups);
   
   int argc;
-  char **argv = CreateArgs({"program", "--host", "localhost", "--db", "postgres", "-v"}, argc);
+  const char **argv = CreateArgs({"program", "--host", "localhost", "--db", "postgres", "-v"}, argc);
   
   bool result = parser.Parse(argc, argv);
   assert(result);

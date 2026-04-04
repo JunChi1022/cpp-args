@@ -25,7 +25,7 @@ void TestBasicAlias() {
   const char *argv[] = {"program", "--save_temps", "-v"};
   int argc = 3;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   // Both aliases should map to the same options
@@ -53,7 +53,7 @@ void TestAliasWithValue() {
   const char *argv[] = {"program", "--output_file=value.txt"};
   int argc = 2;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   assert(parser.HasArg((int)OPT_output));
@@ -81,7 +81,7 @@ void TestMixedAliasUsage() {
   const char *argv[] = {"program", "--verb", "-vb"};
   int argc = 3;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   // Should be recognized as the same option (appears twice)
@@ -110,7 +110,7 @@ void TestAliasWithShortName() {
   const char *argv[] = {"program", "-vr"};
   int argc = 2;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   assert(parser.HasArg((int)OPT_verbose));
@@ -137,7 +137,7 @@ void TestAliasWithJoinedOption() {
   const char *argv[] = {"program", "--lib_pathcuda"};
   int argc = 2;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   assert(parser.HasArg((int)OPT_library));
@@ -165,7 +165,7 @@ void TestShortAliasWithJoinedOption() {
   const char *argv[] = {"program", "-Lcuda"};
   int argc = 2;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   assert(parser.HasArg((int)OPT_library));
@@ -193,7 +193,7 @@ void TestAliasWithoutShortName() {
   const char *argv[] = {"program", "--helpme"};
   int argc = 2;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   assert(parser.HasArg((int)OPT_help));
@@ -222,7 +222,7 @@ void TestMultipleAliasesForSameOption() {
   const char *argv[] = {"program", "--helpme", "-hm", "--hlp", "--assistance"};
   int argc = 5;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   // All should map to the same OPT_help option
@@ -254,7 +254,7 @@ void TestMultipleAliasesMixedUsage() {
   const char *argv[] = {"program", "--verb", "--debug", "--log_all"};
   int argc = 4;
   
-  bool result = parser.Parse(argc, const_cast<char **>(argv));
+  bool result = parser.Parse(argc, argv);
   assert(result);
   
   assert(parser.HasArg((int)OPT_verbose));

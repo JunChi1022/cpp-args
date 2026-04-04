@@ -18,7 +18,7 @@ void TestBasicParsing() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--port", "8080"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));
@@ -37,7 +37,7 @@ void TestHasArgMultipleIds() {
     int argc;
     const char *prog = "./test";
     std::vector<std::string> args = {prog, "--port", "8080"};
-    char **argv = CreateArgs(args, argc);
+    const char **argv = CreateArgs(args, argc);
 
     ArgumentParser parser(TestTable);
     assert(parser.Parse(argc, argv));
@@ -53,7 +53,7 @@ void TestHasArgMultipleIds() {
     int argc;
     const char *prog = "./test";
     std::vector<std::string> args = {prog, "--port", "8080", "--log_lvl", "info"};
-    char **argv = CreateArgs(args, argc);
+    const char **argv = CreateArgs(args, argc);
 
     ArgumentParser parser(TestTable);
     assert(parser.Parse(argc, argv));
@@ -69,7 +69,7 @@ void TestHasArgMultipleIds() {
     int argc;
     const char *prog = "./test";
     std::vector<std::string> args = {prog};
-    char **argv = CreateArgs(args, argc);
+    const char **argv = CreateArgs(args, argc);
 
     ArgumentParser parser(TestTable);
     assert(parser.Parse(argc, argv));
@@ -85,7 +85,7 @@ void TestHasArgMultipleIds() {
     int argc;
     const char *prog = "./test";
     std::vector<std::string> args = {prog, "--output", "result.txt"};
-    char **argv = CreateArgs(args, argc);
+    const char **argv = CreateArgs(args, argc);
 
     ArgumentParser parser(TestTable);
     assert(parser.Parse(argc, argv));
@@ -101,7 +101,7 @@ void TestHasArgMultipleIds() {
     int argc;
     const char *prog = "./test";
     std::vector<std::string> args = {prog, "--port", "8080"};
-    char **argv = CreateArgs(args, argc);
+    const char **argv = CreateArgs(args, argc);
 
     ArgumentParser parser(TestTable);
     assert(parser.Parse(argc, argv));

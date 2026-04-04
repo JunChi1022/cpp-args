@@ -19,7 +19,7 @@ void TestMultipleArguments() {
   const char *prog = "./test";
   std::vector<std::string> args = {prog,    "--port", "3000",   "--log-lvl",
                                    "debug", "-o",     "out.txt"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));

@@ -20,7 +20,7 @@ void TestSeparateOrJoined_SeparateForm() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-I", "/usr/include", "-L", "/usr/lib"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));
@@ -41,7 +41,7 @@ void TestSeparateOrJoined_JoinedForm() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-I/usr/include", "-L/usr/lib"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));
@@ -62,7 +62,7 @@ void TestSeparateOrJoined_MixedForm() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-I/usr/include", "-L", "/usr/lib", "-D", "DEBUG"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));
@@ -86,7 +86,7 @@ void TestSeparateOrJoined_MultipleValues() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-I/usr/include", "-I", "/usr/local/include", "-L/usr/lib"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));
@@ -110,7 +110,7 @@ void TestSeparateOrJoined_WithLongName() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--include=/usr/include", "--library=/usr/lib"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));
@@ -140,7 +140,7 @@ void TestSeparateOrJoined_ComplexScenario() {
     "-v",                       // flag
     "input.cpp"                 // positional argument
   };
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   assert(parser.Parse(argc, argv));

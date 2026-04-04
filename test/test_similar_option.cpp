@@ -94,7 +94,7 @@ TEST(TestParseErrorWithSuggestion) {
   std::string captured;
 
   int argc;
-  char **argv = CreateArgs({"program", "--verbos"}, argc);
+  const char **argv = CreateArgs({"program", "--verbos"}, argc);
 
   bool result = parser.Parse(argc, argv);
   assert(!result); // Should fail

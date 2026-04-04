@@ -18,7 +18,7 @@ void TestAllowedValues() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--log-lvl", "invalid"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(TestTable);
   // Should fail because "invalid" is not in {"debug", "info"}

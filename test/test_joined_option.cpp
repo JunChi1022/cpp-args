@@ -36,7 +36,7 @@ void TestJoinedShortOption() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-Lcuda", "-I/usr/local/include"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(JoinedTable);
   assert(parser.Parse(argc, argv));
@@ -56,7 +56,7 @@ void TestJoinedLongOption() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "--library=cuda"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(JoinedTable);
   // JOINED 类型的长格式带等号不应该被解析成功
@@ -72,7 +72,7 @@ void TestMixedJoinedAndRegular() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-Lcuda", "--output", "app.out", "-v"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(JoinedTable);
   assert(parser.Parse(argc, argv));
@@ -92,7 +92,7 @@ void TestJoinedWithInvalidValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-Linvalid"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(JoinedTable);
   // Should fail because "invalid" is not in allowed values
@@ -109,7 +109,7 @@ void TestJoinedMissingValue() {
   int argc;
   const char *prog = "./test";
   std::vector<std::string> args = {prog, "-L"};
-  char **argv = CreateArgs(args, argc);
+  const char **argv = CreateArgs(args, argc);
 
   ArgumentParser parser(JoinedTable);
   assert(!parser.Parse(argc, argv));
@@ -120,7 +120,7 @@ void TestJoinedMissingValue() {
   // Test long option without value: --library
   const char *prog2 = "./test";
   std::vector<std::string> args2 = {prog2, "--library"};
-  char **argv2 = CreateArgs(args2, argc);
+  const char **argv2 = CreateArgs(args2, argc);
 
   ArgumentParser parser2(JoinedTable);
   assert(!parser2.Parse(argc, argv2));
@@ -131,7 +131,7 @@ void TestJoinedMissingValue() {
   // Test include option without value: -I
   const char *prog3 = "./test";
   std::vector<std::string> args3 = {prog3, "-I"};
-  char **argv3 = CreateArgs(args3, argc);
+  const char **argv3 = CreateArgs(args3, argc);
 
   ArgumentParser parser3(JoinedTable);
   assert(!parser3.Parse(argc, argv3));

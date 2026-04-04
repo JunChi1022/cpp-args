@@ -50,7 +50,7 @@ TEST(TestEqJoin_Basic) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "--output=result.txt"            // equals format
   }, argc);
@@ -75,7 +75,7 @@ TEST(TestEqJoin_WithShort) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "-o=result.txt"                  // short with equals
   }, argc);
@@ -101,7 +101,7 @@ TEST(TestEqJoin_EmptyValue) {
   // Test --output= (empty value should fail)
   ArgumentParser parser1(AppTable);
   int argc1;
-  char **argv1 = CreateArgs({
+  const char **argv1 = CreateArgs({
     "program",
     "--output="                      // equals format with empty value
   }, argc1);
@@ -112,7 +112,7 @@ TEST(TestEqJoin_EmptyValue) {
   // Test -i= (empty value with short option should also fail)
   ArgumentParser parser2(AppTable);
   int argc2;
-  char **argv2 = CreateArgs({
+  const char **argv2 = CreateArgs({
     "program",
     "-i="                            // short equals format with empty value
   }, argc2);
@@ -135,7 +135,7 @@ TEST(TestSeparate_NoEquals) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "--output=result.txt"            // equals format should FAIL for SEPARATE
   }, argc);
@@ -160,7 +160,7 @@ TEST(TestSeparate_WithSpace) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "--output", "result.txt"         // space format
   }, argc);
@@ -185,7 +185,7 @@ TEST(TestSeparateOrEqJoin_BothFormats) {
   // Test space format
   ArgumentParser parser1(AppTable);
   int argc1;
-  char **argv1 = CreateArgs({
+  const char **argv1 = CreateArgs({
     "program",
     "--output", "result1.txt"        // space format
   }, argc1);
@@ -197,7 +197,7 @@ TEST(TestSeparateOrEqJoin_BothFormats) {
   // Test equals format
   ArgumentParser parser2(AppTable);
   int argc2;
-  char **argv2 = CreateArgs({
+  const char **argv2 = CreateArgs({
     "program",
     "--output=result2.txt"           // equals format
   }, argc2);
@@ -223,7 +223,7 @@ TEST(TestRender_EqJoin) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "--output=result.txt",
     "--input", "input.txt",
@@ -267,7 +267,7 @@ TEST(TestRender_EqJoinWithShort) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "-o=result.txt"
   }, argc);
@@ -296,7 +296,7 @@ TEST(TestRender_SeparateOrEqJoin) {
   ArgumentParser parser(AppTable);
   
   int argc;
-  char **argv = CreateArgs({
+  const char **argv = CreateArgs({
     "program",
     "--output=result.txt"
   }, argc);
