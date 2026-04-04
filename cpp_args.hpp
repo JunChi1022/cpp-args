@@ -46,7 +46,7 @@ struct Option {
     FEAT_HIDDEN = 8,   // Bit 3: Hidden option (will not be printed in help)
     FEAT_SHORT =
         16, // Bit 4: Long option also accepts single dash (e.g., -help)
-    FEAT_EQ_JOIN = 32, // Bit 5: equals join format support (--option=value)
+    FEAT_EQ_JOIN = 32,   // Bit 5: equals join format support (--option=value)
     FEAT_COMMA_LIST = 64 // Bit 6: comma-separated list support (--option=a,b,c)
   };
 
@@ -603,7 +603,7 @@ private:
     std::vector<std::string> result;
     std::stringstream ss(value);
     std::string item;
-    
+
     while (std::getline(ss, item, ',')) {
       // Trim whitespace from each item
       size_t start = item.find_first_not_of(" \t");
@@ -615,7 +615,7 @@ private:
         result.push_back(item);
       }
     }
-    
+
     return result;
   }
 
@@ -629,7 +629,8 @@ private:
    * This function provides a centralized way to validate option values,
    * checking against allowed values set and reporting errors with consistent
    * formatting across all parsing functions.
-   * For COMMA_LIST options, splits by comma and validates each value individually.
+   * For COMMA_LIST options, splits by comma and validates each value
+   * individually.
    */
   bool CheckOptionValue(const Option *opt, const std::string &value) const {
     if (!opt)
@@ -874,7 +875,7 @@ private:
       } else {
         parsedArgs[opt->id].push_back(value);
       }
-      
+
       return ParseResult::Success;
     }
 
@@ -942,7 +943,7 @@ private:
       } else {
         parsedArgs[opt->id].push_back(value);
       }
-      
+
       return ParseResult::Success;
     }
 
