@@ -200,7 +200,7 @@ public:
       // Unknown option - not recognized by any parser
       unknownArgs.push_back(arg);
       if (!allowUnknown) {
-        std::string suggestion = FindSimilarOption(arg);
+        std::string suggestion = Option::Normalize(FindSimilarOption(arg));
         if (!suggestion.empty()) {
           *errStream << "Unknown argument '" << arg << "'. Did you mean '"
                      << suggestion << "'?" << std::endl;
@@ -664,7 +664,7 @@ private:
 
     for (const auto &opt : optionTable) {
       // Match short name ONLY with single dash format
-      if (isSingleDash && opt.shortName == normInput)
+      if (isSingleDash && Option::Normalize(opt.shortName) == normInput)
         return &opt;
 
       // For FEAT_SHORT options with single dash, match long name
