@@ -3,7 +3,7 @@
 int main(int argc, char **argv) {
   cppargs::ArgumentParser Parser(MyAppTable, MyAppTableGroups);
   Parser.SetAliasTable(MyAliasTable);
-  if (!Parser.Parse(argc, argv)) {
+  if (!Parser.Parse(argc, (const char **)argv)) {
     return 1;
   }
 

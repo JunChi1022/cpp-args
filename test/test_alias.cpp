@@ -264,6 +264,60 @@ void TestMultipleAliasesMixedUsage() {
   std::cout << "TestMultipleAliasesMixedUsage PASSED" << std::endl;
 }
 
+// Test alias where short name equals long name (edge case)
+void TestAliasWithSameShortAndLongName() {
+  #define SAME_NAME_ALIAS(A) \
+    A(keep, keep, save_temps)
+  
+  DEFINE_ALIAS(SameNameAliasTable, SAME_NAME_ALIAS)
+  
+  #define MAIN_ARGS10(F) \
+    F(save_temps, s, "Save temporary files", FLAG, {})
+  
+  DEFINE_ARGS(MainArgs10, MainTable10, MAIN_ARGS10)
+  
+  ArgumentParser parser(MainTable10);
+  parser.SetAliasTable(SameNameAliasTable);
+  
+  // Use double dash with the alias (should work as long alias)
+  const char *argv[] = {"program", "--keep"};
+  int argc = 2;
+  
+  bool result = parser.Parse(argc, argv);
+  assert(result);
+  
+  assert(parser.HasArg((int)OPT_save_temps));
+  
+  std::cout << "TestAliasWithSameShortAndLongName PASSED" << std::endl;
+}
+
+// Test alias where short name equals long name with single dash
+void TestAliasWithSameShortAndLongNameSingleDash() {
+  #define SAME_NAME_ALIAS2(A) \
+    A(keep, keep, save_temps)
+  
+  DEFINE_ALIAS(SameNameAliasTable2, SAME_NAME_ALIAS2)
+  
+  #define MAIN_ARGS11(F) \
+    F(save_temps, s, "Save temporary files", FLAG, {})
+  
+  DEFINE_ARGS(MainArgs11, MainTable11, MAIN_ARGS11)
+  
+  ArgumentParser parser(MainTable11);
+  parser.SetAliasTable(SameNameAliasTable2);
+  
+  // Use single dash - should also work when short and long are same
+  const char *argv[] = {"program", "-keep"};
+  int argc = 2;
+  
+  bool result = parser.Parse(argc, argv);
+  assert(result);
+  
+  assert(parser.HasArg((int)OPT_save_temps));
+  
+  std::cout << "TestAliasWithSameShortAndLongNameSingleDash PASSED" << std::endl;
+}
+
 int main() {
   TestBasicAlias();
   TestAliasWithValue();
@@ -274,6 +328,8 @@ int main() {
   TestAliasWithoutShortName();
   TestMultipleAliasesForSameOption();
   TestMultipleAliasesMixedUsage();
+  TestAliasWithSameShortAndLongName();
+  TestAliasWithSameShortAndLongNameSingleDash();
   
   std::cout << "\n=== All Alias Tests PASSED ===" << std::endl;
   return 0;

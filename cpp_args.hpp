@@ -737,29 +737,39 @@ private:
     if (it != aliasMap.end()) {
       std::string normOptionName = Option::Normalize(it->second);
 
-      // Check if this is a short alias by searching the alias table
+      // Check if this is a short alias and/or long alias by searching the alias table
       bool isShortAlias = false;
       bool isLongAlias = false;
       for (const auto &alias : aliasTable) {
+        // Check if this matches a short alias (don't break, continue to check
+        // long alias too)
         if (!alias.shortAliasName.empty() &&
             alias.shortAliasName == normInput) {
           isShortAlias = true;
-          break;
         }
         // Check if this matches a long alias
         if (Option::Normalize(alias.aliasName) == normInput) {
           isLongAlias = true;
+        }
+
+        if (isShortAlias || isLongAlias) {
           break;
         }
       }
 
-      // Short aliases require single dash format
-      if (isShortAlias && !isSingleDash) {
+      // If both short and long aliases match (they are the same),
+      // accept either single or double dash format
+      if (isShortAlias && isLongAlias) {
+        // Both formats are acceptable when short and long aliases are identical
+      }
+      // Short aliases require single dash format (only if not also a long
+      // alias)
+      else if (isShortAlias && !isSingleDash) {
         return nullptr;
       }
-
-      // Long aliases require double dash format
-      if (isLongAlias && !isDoubleDash) {
+      // Long aliases require double dash format (only if not also a short
+      // alias)
+      else if (isLongAlias && !isDoubleDash) {
         return nullptr;
       }
 
