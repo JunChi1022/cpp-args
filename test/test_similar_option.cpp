@@ -121,6 +121,56 @@ TEST(TestSimilarOption_JoinedTypo) {
   std::cout << "Suggestion for '--libary=cuda': " << suggestion << std::endl;
 }
 
+// Test that EQ_JOIN suggestion does not append = when input has no =
+TEST(TestSimilarOption_EqJoinNoEquals) {
+#define OPTIONS7(F)                                                            \
+  F(config, c, "Config file", SEPARATE | EQ_JOIN, {"dev", "prod"})
+
+  DEFINE_ARGS(App, AppTable, OPTIONS7)
+
+  ArgumentParser parser(AppTable);
+
+  // Misspelling without = should not get = appended
+  std::string suggestion = parser.FindSimilarOption("--confi");
+  assert(suggestion == "--config");
+  std::cout << "Suggestion for '--confi' (no =): " << suggestion << std::endl;
+}
+
+// Test that EQ_JOIN suggestion DOES append = when input has =
+TEST(TestSimilarOption_EqJoinWithEquals) {
+#define OPTIONS8(F)                                                            \
+  F(config, c, "Config file", SEPARATE | EQ_JOIN, {"dev", "prod"})
+
+  DEFINE_ARGS(App, AppTable, OPTIONS8)
+
+  ArgumentParser parser(AppTable);
+
+  // Misspelling with = should get = appended
+  std::string suggestion = parser.FindSimilarOption("--confi=dev");
+  assert(suggestion == "--config=");
+  std::cout << "Suggestion for '--confi=dev' (with =): " << suggestion << std::endl;
+}
+
+// Test that FEAT_SHORT options suggest both -name and --name forms
+TEST(TestSimilarOption_ShortBothDashes) {
+#define OPTIONS9(F)                                                            \
+  F(help, h, "Print help", FLAG | SHORT, {})
+
+  DEFINE_ARGS(App, AppTable, OPTIONS9)
+
+  ArgumentParser parser(AppTable);
+
+  // Typo with single dash should suggest -help
+  std::string s1 = parser.FindSimilarOption("-hel");
+  assert(s1 == "-help");
+  std::cout << "Suggestion for '-hel': " << s1 << std::endl;
+
+  // Typo with double dash should suggest --help
+  std::string s2 = parser.FindSimilarOption("--hel");
+  assert(s2 == "--help");
+  std::cout << "Suggestion for '--hel': " << s2 << std::endl;
+}
+
 int main() {
   try {
     RUN_TEST(TestSimilarOption_BasicTypo);
@@ -129,6 +179,9 @@ int main() {
     RUN_TEST(TestSimilarOption_NoMatch);
     RUN_TEST(TestParseErrorWithSuggestion);
     RUN_TEST(TestSimilarOption_JoinedTypo);
+    RUN_TEST(TestSimilarOption_EqJoinNoEquals);
+    RUN_TEST(TestSimilarOption_EqJoinWithEquals);
+    RUN_TEST(TestSimilarOption_ShortBothDashes);
 
     std::cout << "\nAll tests PASSED!" << std::endl;
     return 0;

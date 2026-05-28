@@ -253,6 +253,39 @@ void TestLongAliasRequiresDoubleDash() {
   std::cout << "TestLongAliasRequiresDoubleDash PASSED" << std::endl;
 }
 
+// Test FEAT_SHORT with double dash (--help should also work for SHORT options)
+void TestShortOptionWithDoubleDash() {
+#define SHORT_DDASH_OPTS(F) \
+  F(help, h, "Print help", FLAG | SHORT, {}) \
+  F(output, o, "Output file", SEPARATE | SHORT, {})
+
+  DEFINE_ARGS(ShortDDashOpts, ShortDDashTable, SHORT_DDASH_OPTS)
+
+  ArgumentParser parser(ShortDDashTable);
+
+  // Test that --help (double dash) works for FLAG|SHORT option
+  {
+    const char *argv[] = {"program", "--help"};
+    int argc = 2;
+    bool result = parser.Parse(argc, (argv));
+    assert(result);
+    assert(parser.HasArg((int)OPT_help));
+  }
+
+  // Test that --output (double dash) works for SEPARATE|SHORT option
+  parser.Reset();
+  {
+    const char *argv[] = {"program", "--output", "file.txt"};
+    int argc = 3;
+    bool result = parser.Parse(argc, (argv));
+    assert(result);
+    assert(parser.HasArg((int)OPT_output));
+    assert(parser.GetArgValue((int)OPT_output) == "file.txt");
+  }
+
+  std::cout << "TestShortOptionWithDoubleDash PASSED" << std::endl;
+}
+
 // Test that short name normalization works correctly (underscore to dash)
 void TestShortNameNormalization() {
 #define SHORT_NORM_OPTS(F)                                                     \
@@ -320,6 +353,7 @@ int main() {
   TestShortNameRequiresSingleDash();
   TestShortAliasRequiresSingleDash();
   TestLongAliasRequiresDoubleDash();
+  TestShortOptionWithDoubleDash();
   TestShortNameNormalization();
 
   std::cout << "========================================" << std::endl;

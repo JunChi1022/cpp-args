@@ -318,6 +318,49 @@ void TestAliasWithSameShortAndLongNameSingleDash() {
   std::cout << "TestAliasWithSameShortAndLongNameSingleDash PASSED" << std::endl;
 }
 
+// Test that the same input string can match a short alias in one entry
+// and a long alias in another entry (dual-role across separate entries).
+// Without the fix, the early-break would miss the long alias role and
+// incorrectly reject double-dash format.
+void TestAliasDualRoleAcrossEntries() {
+  #define DUAL_ROLE_ALIAS(A) \
+    A(out_file, out, output) \
+    A(out, , output)
+
+  DEFINE_ALIAS(DualRoleAliasTable, DUAL_ROLE_ALIAS)
+
+  #define DUAL_ROLE_ARGS(F) \
+    F(output, o, "Output file", SEPARATE, {})
+
+  DEFINE_ARGS(DualRoleArgs, DualRoleTable, DUAL_ROLE_ARGS)
+
+  // "-out" should work (short alias from entry 1)
+  {
+    ArgumentParser parser(DualRoleTable);
+    parser.SetAliasTable(DualRoleAliasTable);
+    const char *argv[] = {"program", "-out", "file.txt"};
+    int argc = 3;
+    bool result = parser.Parse(argc, (argv));
+    assert(result);
+    assert(parser.HasArg((int)OPT_output));
+    assert(parser.GetArgValue((int)OPT_output) == "file.txt");
+  }
+
+  // "--out" should also work (long alias from entry 2)
+  {
+    ArgumentParser parser(DualRoleTable);
+    parser.SetAliasTable(DualRoleAliasTable);
+    const char *argv[] = {"program", "--out", "file2.txt"};
+    int argc = 3;
+    bool result = parser.Parse(argc, (argv));
+    assert(result);
+    assert(parser.HasArg((int)OPT_output));
+    assert(parser.GetArgValue((int)OPT_output) == "file2.txt");
+  }
+
+  std::cout << "TestAliasDualRoleAcrossEntries PASSED" << std::endl;
+}
+
 int main() {
   TestBasicAlias();
   TestAliasWithValue();
@@ -330,7 +373,8 @@ int main() {
   TestMultipleAliasesMixedUsage();
   TestAliasWithSameShortAndLongName();
   TestAliasWithSameShortAndLongNameSingleDash();
-  
+  TestAliasDualRoleAcrossEntries();
+
   std::cout << "\n=== All Alias Tests PASSED ===" << std::endl;
   return 0;
 }

@@ -306,19 +306,28 @@ public:
     std::string bestMatch;
     int minDistance = std::numeric_limits<int>::max();
 
+    bool inputHasEq = (eqPos != std::string::npos);
+
     for (const auto &opt : optionTable) {
       int distance;
       std::string candidate;
 
-      // For long options, compare against normalized long name
-      std::string normLongName;
+      std::string normLongDoubleDash = "--" + Option::Normalize(opt.longName);
+      std::string normLongSingleDash = "-" + Option::Normalize(opt.longName);
+
       if (opt.HasFeature(Option::FEAT_SHORT)) {
-        normLongName = "-" + Option::Normalize(opt.longName);
+        // For FEAT_SHORT, consider both single-dash and double-dash forms
+        distance = LevenshteinDistance(normInput, normLongSingleDash);
+        candidate = normLongSingleDash;
+        int doubleDashDist = LevenshteinDistance(normInput, normLongDoubleDash);
+        if (doubleDashDist < distance) {
+          distance = doubleDashDist;
+          candidate = normLongDoubleDash;
+        }
       } else {
-        normLongName = "--" + Option::Normalize(opt.longName);
+        distance = LevenshteinDistance(normInput, normLongDoubleDash);
+        candidate = normLongDoubleDash;
       }
-      distance = LevenshteinDistance(normInput, normLongName);
-      candidate = normLongName;
 
       // Also consider short name if it exists and might be a better match
       if (!opt.shortName.empty()) {
@@ -329,7 +338,7 @@ public:
         }
       }
 
-      if (opt.HasFeature(Option::FEAT_EQ_JOIN)) {
+      if (inputHasEq && opt.HasFeature(Option::FEAT_EQ_JOIN)) {
         candidate += "=";
       }
 
@@ -458,7 +467,7 @@ public:
     }
   }
 
-  virtual void PrintHelp(int wrappedWidth = 100) const {
+  void PrintHelp(int wrappedWidth = 100) const {
     // Check if we have groups defined
     if (optionGroups.empty()) {
       // Print all options without grouping
@@ -520,7 +529,7 @@ public:
   }
 
 private:
-  virtual void printOption(const Option *opt, int wrappedWidth = 100) const {
+  void printOption(const Option *opt, int wrappedWidth = 100) const {
     if (opt->HasFeature(Option::FEAT_HIDDEN)) {
       return;
     }
@@ -717,15 +726,18 @@ private:
         return &opt;
 
       // For FEAT_SHORT options with single dash, match long name
-      // This allows -help but NOT --help for FLAG|SHORT options
       if (isSingleDash && opt.HasFeature(Option::FEAT_SHORT) &&
           Option::Normalize(opt.longName) == normInput) {
         return &opt;
       }
 
-      // For normal options (without FEAT_SHORT), match long name with double
-      // dash Or match long name regardless of dash type for non-FEAT_SHORT
-      // options
+      // For FEAT_SHORT options with double dash, also match long name
+      if (isDoubleDash && opt.HasFeature(Option::FEAT_SHORT) &&
+          Option::Normalize(opt.longName) == normInput) {
+        return &opt;
+      }
+
+      // For non-FEAT_SHORT options, match long name regardless of dash type
       if (!opt.HasFeature(Option::FEAT_SHORT) &&
           Option::Normalize(opt.longName) == normInput) {
         return &opt;
@@ -741,19 +753,12 @@ private:
       bool isShortAlias = false;
       bool isLongAlias = false;
       for (const auto &alias : aliasTable) {
-        // Check if this matches a short alias (don't break, continue to check
-        // long alias too)
         if (!alias.shortAliasName.empty() &&
             alias.shortAliasName == normInput) {
           isShortAlias = true;
         }
-        // Check if this matches a long alias
         if (Option::Normalize(alias.aliasName) == normInput) {
           isLongAlias = true;
-        }
-
-        if (isShortAlias || isLongAlias) {
-          break;
         }
       }
 
@@ -784,25 +789,27 @@ private:
     return nullptr;
   }
 
+  const Option *FindOptionByAlias(const std::string &key) const {
+    auto it = aliasMap.find(key);
+    if (it == aliasMap.end())
+      return nullptr;
+
+    std::string normOptionName = Option::Normalize(it->second);
+    for (const auto &opt : optionTable) {
+      if (Option::Normalize(opt.longName) == normOptionName ||
+          opt.shortName == normOptionName) {
+        return &opt;
+      }
+    }
+    return nullptr;
+  }
+
   const Option *FindOptionByShortName(const std::string &shortName) const {
     for (const auto &opt : optionTable) {
       if (opt.shortName == shortName)
         return &opt;
     }
-
-    // Check alias map (efficient O(log n) lookup)
-    auto it = aliasMap.find(shortName);
-    if (it != aliasMap.end()) {
-      std::string normOptionName = Option::Normalize(it->second);
-      for (const auto &opt : optionTable) {
-        if (Option::Normalize(opt.longName) == normOptionName ||
-            opt.shortName == normOptionName) {
-          return &opt;
-        }
-      }
-    }
-
-    return nullptr;
+    return FindOptionByAlias(shortName);
   }
 
   const Option *FindOptionByLongName(const std::string &longName) const {
@@ -811,20 +818,7 @@ private:
       if (Option::Normalize(opt.longName) == normName)
         return &opt;
     }
-
-    // Check alias map (efficient O(log n) lookup)
-    auto it = aliasMap.find(normName);
-    if (it != aliasMap.end()) {
-      std::string normOptionName = Option::Normalize(it->second);
-      for (const auto &opt : optionTable) {
-        if (Option::Normalize(opt.longName) == normOptionName ||
-            opt.shortName == normOptionName) {
-          return &opt;
-        }
-      }
-    }
-
-    return nullptr;
+    return FindOptionByAlias(normName);
   }
 
   /**
@@ -834,11 +828,6 @@ private:
    */
   ParseResult ParseFlag(const std::string &arg) {
     const Option *opt = FindOption(arg);
-
-    // For FEAT_SHORT options, also check single dash format
-    if (!opt && arg.find("-") == 0 && arg.find("--") != 0) {
-      opt = FindOption(arg);
-    }
 
     if (opt && opt->HasFeature(Option::FEAT_FLAG)) {
       parsedArgs[opt->id].push_back("");
