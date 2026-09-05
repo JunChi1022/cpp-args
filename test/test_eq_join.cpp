@@ -6,9 +6,6 @@
 
 using namespace cppargs;
 
-// Define TEST macro for simple function declaration
-#define TEST(name) void name()
-
 // Test EQ_JOIN feature - equals format only
 void TestEqJoin_Basic();
 void TestEqJoin_WithShort();

@@ -5,14 +5,6 @@
 
 using namespace cppargs;
 
-#define TEST(name) void name()
-#define RUN_TEST(name)                                                         \
-  do {                                                                         \
-    std::cout << "Running " << #name << "... ";                                \
-    name();                                                                    \
-    std::cout << "PASSED" << std::endl;                                        \
-  } while (0)
-
 // Test basic typo detection- long option
 TEST(TestSimilarOption_BasicTypo) {
 #define OPTIONS1(F)                                                            \

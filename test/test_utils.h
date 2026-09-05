@@ -2,8 +2,19 @@
 #define TEST_UTILS_HPP
 
 #include <cstring>
+#include <iostream>
 #include <vector>
 #include <string>
+
+// Simple test macros shared by all test executables
+#define TEST(name) void name()
+
+#define RUN_TEST(name)                                                       \
+  do {                                                                       \
+    std::cout << "Running " << #name << "... ";                              \
+    name();                                                                  \
+    std::cout << "PASSED" << std::endl;                                      \
+  } while (0)
 
 /**
  * @brief Helper to create argc/argv from string array

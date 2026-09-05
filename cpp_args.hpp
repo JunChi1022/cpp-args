@@ -96,7 +96,9 @@ using AliasMap = std::map<std::string, std::string>;
 class ArgumentParser {
 public:
   explicit ArgumentParser(const OptionTable &table)
-      : optionTable(table), allowUnknown(false), errStream(&std::cerr) {}
+      : optionTable(table), allowUnknown(false), errStream(&std::cerr) {
+    BuildOptionLookup();
+  }
 
   /**
    * @brief Constructor with option groups support
@@ -105,7 +107,9 @@ public:
    */
   ArgumentParser(const OptionTable &table, const OptionGroupTable &groups)
       : optionTable(table), optionGroups(groups), allowUnknown(false),
-        errStream(&std::cerr) {}
+        errStream(&std::cerr) {
+    BuildOptionLookup();
+  }
 
   /**
    * @brief Set the error message output stream
@@ -137,10 +141,15 @@ public:
         aliasMap[alias.shortAliasName] = alias.optionName;
       }
     }
+
+    BuildAliasLookup();
   }
 
   /**
    * @brief reset parsed result.
+   *
+   * Parse() appends results to the current state, so call Reset() before
+   * parsing again with the same parser.
    */
   void Reset() {
     parsedArgs.clear();
@@ -152,10 +161,21 @@ public:
    * @brief Fuzzy parsing: treats "_" and "-" as identical.
    * Supports joined options where value is attached to the option name
    * Remaining arguments after known options are treated as inputs
+   *
+   * Note: this method appends to the parser's state; call Reset() before
+   * parsing again with the same parser.
    */
   bool Parse(int argc, const char **argv) {
     for (int i = 1; i < argc; ++i) {
       std::string arg = argv[i];
+
+      // Everything after "--" is a positional input, not an option
+      if (arg == "--") {
+        for (int j = i + 1; j < argc; ++j) {
+          inputs.push_back(argv[j]);
+        }
+        break;
+      }
 
       // Check if this looks like an option (starts with - or --)
       bool isOption = (arg.size() > 0 && arg[0] == '-');
@@ -467,12 +487,20 @@ public:
     }
   }
 
-  void PrintHelp(int wrappedWidth = 100) const {
+  /**
+   * @brief Print the help text for all options to a stream
+   * @param os Output stream (default is std::cout)
+   * @param wrappedWidth Maximum line width for wrapping
+   *
+   * The stream can be redirected (e.g. std::ostringstream for testing or GUI
+   * display).
+   */
+  void PrintHelp(std::ostream &os = std::cout, int wrappedWidth = 100) const {
     // Check if we have groups defined
     if (optionGroups.empty()) {
       // Print all options without grouping
       for (const auto &opt : optionTable) {
-        printOption(&opt, wrappedWidth);
+        printOption(&opt, os, wrappedWidth);
       }
     } else {
       // Group options by groupId
@@ -496,7 +524,7 @@ public:
       // Print ungrouped options first
       bool hasUngrouped = !ungroupedOptions.empty();
       for (const auto *opt : ungroupedOptions) {
-        printOption(opt, wrappedWidth);
+        printOption(opt, os, wrappedWidth);
       }
 
       // Print grouped options
@@ -511,28 +539,33 @@ public:
 
         // Add separator before each group (except possibly the first)
         if (!firstGroup || hasUngrouped) {
-          std::cout << std::endl;
+          os << std::endl;
         }
         firstGroup = false;
 
         // Print group header if we have a group name
         if (!optionGroups[groupId].name.empty()) {
-          std::cout << optionGroups[groupId].name << ":" << std::endl;
-          std::cout << std::string(wrappedWidth, '=') << std::endl;
+          os << optionGroups[groupId].name << ":" << std::endl;
+          os << std::string(wrappedWidth, '=') << std::endl;
         }
 
         for (const auto *opt : options) {
-          printOption(opt, wrappedWidth);
+          printOption(opt, os, wrappedWidth);
         }
       }
     }
   }
 
 private:
-  void printOption(const Option *opt, int wrappedWidth = 100) const {
+  void printOption(const Option *opt, std::ostream &os,
+                         int wrappedWidth = 100) const {
     if (opt->HasFeature(Option::FEAT_HIDDEN)) {
       return;
     }
+
+    int labelWidth = std::max(0, wrappedWidth - 30);
+    size_t maxBriefLen = static_cast<size_t>(std::max(2, wrappedWidth) / 2);
+    int wrapWidth = std::max(4, wrappedWidth) - 4;
 
     // brief = longName [kind] [allow values]
     // For FEAT_SHORT options, show both --option and -option formats
@@ -553,7 +586,7 @@ private:
     if (!opt->allowed.empty()) {
       brief += " [Values: ";
       for (auto it = opt->allowed.begin(); it != opt->allowed.end(); ++it) {
-        if (brief.size() >= wrappedWidth / 2) {
+        if (brief.size() >= maxBriefLen) {
           brief += "|...";
           break;
         }
@@ -563,12 +596,12 @@ private:
       brief += "]";
     }
 
-    std::cout << std::left << std::setw(wrappedWidth - 30) << brief;
+    os << std::left << std::setw(labelWidth) << brief;
 
     if (!opt->shortName.empty()) {
-      std::cout << "(-" << Option::Normalize(opt->shortName) << ")";
+      os << "(-" << Option::Normalize(opt->shortName) << ")";
     }
-    std::cout << std::endl;
+    os << std::endl;
 
     std::istringstream iss(opt->help);
     std::string word;
@@ -576,8 +609,8 @@ private:
 
     while (iss >> word) {
       if (!line.empty() && line.length() + 1 + word.length() >
-                               static_cast<size_t>(wrappedWidth - 4)) {
-        std::cout << "    " << line << std::endl;
+                               static_cast<size_t>(wrapWidth)) {
+        os << "    " << line << std::endl;
         line = word;
       } else {
         if (line.empty()) {
@@ -588,7 +621,7 @@ private:
       }
     }
     if (!line.empty()) {
-      std::cout << "    " << line << std::endl;
+      os << "    " << line << std::endl;
     }
 
     // print alias
@@ -596,17 +629,17 @@ private:
       if (it.optionName == opt->longName) {
         if (it.aliasName.empty()) {
           // only short alias name
-          std::cout << std::left << std::setw(wrappedWidth - 30)
+          os << std::left << std::setw(labelWidth)
                     << ("-" + it.shortAliasName);
         } else {
-          std::cout << std::left << std::setw(wrappedWidth - 30)
+          os << std::left << std::setw(labelWidth)
                     << ("--" + it.aliasName);
           if (!it.shortAliasName.empty()) {
-            std::cout << "(-" << it.shortAliasName << ")";
+            os << "(-" << it.shortAliasName << ")";
           }
         }
-        std::cout << std::endl;
-        std::cout << "    Alias for " << "--"
+        os << std::endl;
+        os << "    Alias for " << "--"
                   << Option::Normalize(opt->longName) << std::endl;
       }
     }
@@ -616,24 +649,33 @@ private:
    * @brief Split a comma-separated string into individual values
    * @param value The comma-separated string to split
    * @return Vector of individual values
+   *
+   * Whitespace around each field is trimmed. Empty fields (including
+   * leading/trailing commas, e.g. "a," or ",b") are preserved as empty
+   * strings so that validation can reject them.
    */
   static std::vector<std::string> SplitCommaList(const std::string &value) {
     std::vector<std::string> result;
-    std::stringstream ss(value);
-    std::string item;
+    size_t pos = 0;
+    while (pos <= value.size()) {
+      size_t comma = value.find(',', pos);
+      std::string item = (comma == std::string::npos)
+                             ? value.substr(pos)
+                             : value.substr(pos, comma - pos);
 
-    while (std::getline(ss, item, ',')) {
-      // Trim whitespace from each item
       size_t start = item.find_first_not_of(" \t");
       size_t end = item.find_last_not_of(" \t");
-      if (start != std::string::npos) {
+      if (start == std::string::npos) {
+        result.push_back("");
+      } else {
         result.push_back(item.substr(start, end - start + 1));
-      } else if (!item.empty()) {
-        // If the item is not empty but has no non-whitespace chars
-        result.push_back(item);
       }
-    }
 
+      if (comma == std::string::npos) {
+        break;
+      }
+      pos = comma + 1;
+    }
     return result;
   }
 
@@ -654,21 +696,28 @@ private:
     if (!opt)
       return false;
 
-    // If no allowed values specified, the value is always valid
-    if (opt->allowed.empty())
-      return true;
-
-    // For COMMA_LIST options, split and validate each value
+    // For COMMA_LIST options, split and validate each value individually.
+    // Empty fields (e.g. "a," or ",b") are rejected. Validation also runs when
+    // no allowed values are specified, so empty fields are always caught.
     if (opt->HasFeature(Option::FEAT_COMMA_LIST)) {
       std::vector<std::string> values = SplitCommaList(value);
       for (const auto &singleValue : values) {
-        if (opt->allowed.find(singleValue) == opt->allowed.end()) {
+        if (singleValue.empty()) {
+          ReportInvalidValue(opt, singleValue);
+          return false;
+        }
+        if (!opt->allowed.empty() &&
+            opt->allowed.find(singleValue) == opt->allowed.end()) {
           ReportInvalidValue(opt, singleValue);
           return false;
         }
       }
       return true;
     }
+
+    // If no allowed values specified, the value is always valid
+    if (opt->allowed.empty())
+      return true;
 
     // For non-COMMA_LIST options, check the value directly
     if (opt->allowed.find(value) == opt->allowed.end()) {
@@ -699,8 +748,16 @@ private:
       optionName = "--" + Option::Normalize(opt->longName);
     }
 
-    *errStream << "Invalid value '" << value << "' for " << optionName
-               << std::endl;
+    *errStream << "Invalid value '" << value << "' for " << optionName;
+    if (!opt->allowed.empty()) {
+      *errStream << ". Allowed values: ";
+      bool first = true;
+      for (const auto &allowed : opt->allowed) {
+        *errStream << (first ? "" : "|") << allowed;
+        first = false;
+      }
+    }
+    *errStream << std::endl;
   }
 
   const Option *FindOption(const std::string &input) const {
@@ -720,73 +777,17 @@ private:
     }
     std::string normInput = Option::Normalize(cleanInput);
 
-    for (const auto &opt : optionTable) {
-      // Match short name ONLY with single dash format
-      if (isSingleDash && Option::Normalize(opt.shortName) == normInput)
-        return &opt;
-
-      // For FEAT_SHORT options with single dash, match long name
-      if (isSingleDash && opt.HasFeature(Option::FEAT_SHORT) &&
-          Option::Normalize(opt.longName) == normInput) {
-        return &opt;
-      }
-
-      // For FEAT_SHORT options with double dash, also match long name
-      if (isDoubleDash && opt.HasFeature(Option::FEAT_SHORT) &&
-          Option::Normalize(opt.longName) == normInput) {
-        return &opt;
-      }
-
-      // For non-FEAT_SHORT options, match long name regardless of dash type
-      if (!opt.HasFeature(Option::FEAT_SHORT) &&
-          Option::Normalize(opt.longName) == normInput) {
-        return &opt;
-      }
+    if (isSingleDash || isDoubleDash) {
+      // O(log n) lookup: keys are pre-normalized and dash-prefixed
+      std::string key = (isDoubleDash ? "--" : "-") + normInput;
+      const Option *opt = LookupIn(optionLookupMap, key);
+      if (opt)
+        return opt;
+      return LookupIn(aliasLookupMap, key);
     }
 
-    // If not found, check alias map (efficient O(log n) lookup)
-    auto it = aliasMap.find(normInput);
-    if (it != aliasMap.end()) {
-      std::string normOptionName = Option::Normalize(it->second);
-
-      // Check if this is a short alias and/or long alias by searching the alias table
-      bool isShortAlias = false;
-      bool isLongAlias = false;
-      for (const auto &alias : aliasTable) {
-        if (!alias.shortAliasName.empty() &&
-            alias.shortAliasName == normInput) {
-          isShortAlias = true;
-        }
-        if (Option::Normalize(alias.aliasName) == normInput) {
-          isLongAlias = true;
-        }
-      }
-
-      // If both short and long aliases match (they are the same),
-      // accept either single or double dash format
-      if (isShortAlias && isLongAlias) {
-        // Both formats are acceptable when short and long aliases are identical
-      }
-      // Short aliases require single dash format (only if not also a long
-      // alias)
-      else if (isShortAlias && !isSingleDash) {
-        return nullptr;
-      }
-      // Long aliases require double dash format (only if not also a short
-      // alias)
-      else if (isLongAlias && !isDoubleDash) {
-        return nullptr;
-      }
-
-      // Find the option by its name (from alias map value)
-      for (const auto &opt : optionTable) {
-        if (Option::Normalize(opt.longName) == normOptionName) {
-          return &opt;
-        }
-      }
-    }
-
-    return nullptr;
+    // No-prefix input matches the bare long name of non-SHORT options
+    return LookupIn(optionLookupMap, normInput);
   }
 
   const Option *FindOptionByAlias(const std::string &key) const {
@@ -805,20 +806,180 @@ private:
   }
 
   const Option *FindOptionByShortName(const std::string &shortName) const {
-    for (const auto &opt : optionTable) {
-      if (opt.shortName == shortName)
-        return &opt;
-    }
+    std::string key = "-" + Option::Normalize(shortName);
+    const Option *opt = LookupIn(optionLookupMap, key);
+    if (opt)
+      return opt;
+    opt = LookupIn(aliasLookupMap, key);
+    if (opt)
+      return opt;
     return FindOptionByAlias(shortName);
   }
 
   const Option *FindOptionByLongName(const std::string &longName) const {
-    std::string normName = Option::Normalize(longName);
-    for (const auto &opt : optionTable) {
-      if (Option::Normalize(opt.longName) == normName)
-        return &opt;
+    std::string key = "--" + Option::Normalize(longName);
+    const Option *opt = LookupIn(optionLookupMap, key);
+    if (opt)
+      return opt;
+    opt = LookupIn(aliasLookupMap, key);
+    if (opt)
+      return opt;
+    return FindOptionByAlias(Option::Normalize(longName));
+  }
+
+  /**
+   * @brief Build the normalized-name lookup map from the option table.
+   *
+   * Keys are pre-normalized (underscore -> dash) and dash-prefixed so that
+   * FindOption() and friends are O(log n) instead of scanning the whole
+   * option table on every argument. Maps store indices into optionTable,
+   * which keeps them valid across parser copy/assignment.
+   */
+  void BuildOptionLookup() {
+    optionLookupMap.clear();
+    for (size_t i = 0; i < optionTable.size(); ++i) {
+      const Option &opt = optionTable[i];
+      std::string normLong = Option::Normalize(opt.longName);
+
+      // Double dash always matches the long name
+      optionLookupMap["--" + normLong] = static_cast<int>(i);
+
+      if (opt.HasFeature(Option::FEAT_SHORT)) {
+        // FEAT_SHORT options also accept the long name with a single dash
+        optionLookupMap["-" + normLong] = static_cast<int>(i);
+      } else {
+        // No-prefix form for backward compatibility
+        optionLookupMap[normLong] = static_cast<int>(i);
+      }
+
+      if (!opt.shortName.empty()) {
+        // Short names only match with a single dash
+        optionLookupMap["-" + Option::Normalize(opt.shortName)] =
+            static_cast<int>(i);
+      }
     }
-    return FindOptionByAlias(normName);
+  }
+
+  /**
+   * @brief Build the alias lookup map from the alias table.
+   *
+   * Long aliases are stored under a double-dash key, short aliases under a
+   * single-dash key. This preserves the original dash-format restrictions
+   * (short aliases require single dash, long aliases require double dash)
+   * without scanning the alias table at parse time.
+   */
+  void BuildAliasLookup() {
+    aliasLookupMap.clear();
+    for (const auto &alias : aliasTable) {
+      int target = FindOptionIndexByName(alias.optionName);
+      if (target < 0)
+        continue;
+
+      if (!alias.aliasName.empty()) {
+        aliasLookupMap["--" + Option::Normalize(alias.aliasName)] = target;
+      }
+      if (!alias.shortAliasName.empty()) {
+        aliasLookupMap["-" + alias.shortAliasName] = target;
+      }
+    }
+  }
+
+  /**
+   * @brief Resolve an option by its long or short name (used for alias targets)
+   * @param name The raw option name (e.g. "save_temps")
+   * @return Index into optionTable, or -1 if not found
+   */
+  int FindOptionIndexByName(const std::string &name) const {
+    std::string norm = Option::Normalize(name);
+    for (size_t i = 0; i < optionTable.size(); ++i) {
+      if (Option::Normalize(optionTable[i].longName) == norm ||
+          optionTable[i].shortName == norm) {
+        return static_cast<int>(i);
+      }
+    }
+    return -1;
+  }
+
+  const Option *FindOptionByName(const std::string &name) const {
+    int idx = FindOptionIndexByName(name);
+    return (idx >= 0) ? &optionTable[idx] : nullptr;
+  }
+
+  /**
+   * @brief Look up a normalized key in a name->index map and resolve it to an
+   * option pointer (or nullptr).
+   */
+  const Option *LookupIn(const std::map<std::string, int> &map,
+                         const std::string &key) const {
+    auto it = map.find(key);
+    if (it == map.end())
+      return nullptr;
+    if (it->second < 0 || it->second >= static_cast<int>(optionTable.size()))
+      return nullptr;
+    return &optionTable[it->second];
+  }
+
+  /**
+   * @brief Check if a string looks like a negative number (e.g. "-5", "-1.5")
+   */
+  static bool IsNegativeNumber(const std::string &s) {
+    if (s.size() < 2 || s[0] != '-')
+      return false;
+    char c = s[1];
+    if (c >= '0' && c <= '9')
+      return true;
+    if (c == '.' && s.size() > 2) {
+      char c2 = s[2];
+      return c2 >= '0' && c2 <= '9';
+    }
+    return false;
+  }
+
+  /**
+   * @brief Check if a string looks like an option (starts with '-', but is not
+   * a lone "-" or a negative number).
+   */
+  static bool LooksLikeOption(const std::string &s) {
+    if (s.size() < 2 || s[0] != '-')
+      return false;
+    return !IsNegativeNumber(s);
+  }
+
+  /**
+   * @brief Normalize an argument name for error messages.
+   * Converts underscores to dashes while preserving the prefix.
+   */
+  static std::string NormalizeArgName(const std::string &arg) {
+    std::string normalized = arg;
+    if (normalized.find("--") == 0) {
+      normalized = "--" + Option::Normalize(normalized.substr(2));
+    } else if (normalized.find("-") == 0 && normalized.size() > 1) {
+      std::string shortPrefix = normalized.substr(0, 1);
+      std::string rest = normalized.substr(1);
+      // Check if this looks like a long name used with single dash
+      if (rest.find('-') != std::string::npos || rest.length() > 2) {
+        normalized = shortPrefix + Option::Normalize(rest);
+      }
+    }
+    return normalized;
+  }
+
+  /**
+   * @brief Store a validated value for an option.
+   *
+   * For COMMA_LIST options the value is split and each part is stored
+   * separately; otherwise the value is stored as-is. The value is assumed to
+   * have already passed CheckOptionValue().
+   */
+  void StoreValue(const Option *opt, const std::string &value) {
+    if (opt->HasFeature(Option::FEAT_COMMA_LIST)) {
+      std::vector<std::string> values = SplitCommaList(value);
+      for (const auto &singleValue : values) {
+        parsedArgs[opt->id].push_back(singleValue);
+      }
+    } else {
+      parsedArgs[opt->id].push_back(value);
+    }
   }
 
   /**
@@ -851,21 +1012,11 @@ private:
     const Option *opt = FindOption(arg);
 
     if (opt && opt->HasFeature(Option::FEAT_SEPARATE)) {
-      if (i + 1 >= argc) {
-        // Normalize the argument name for consistent error messages
-        std::string normalizedArg = arg;
-        if (normalizedArg.find("--") == 0) {
-          normalizedArg = "--" + Option::Normalize(normalizedArg.substr(2));
-        } else if (normalizedArg.find("-") == 0 && normalizedArg.size() > 2) {
-          // For short options with full name (e.g., -log-lvl), normalize it
-          std::string shortPrefix = normalizedArg.substr(0, 1);
-          std::string rest = normalizedArg.substr(1);
-          // Check if this looks like a long name used with single dash
-          if (rest.find('-') != std::string::npos || rest.length() > 2) {
-            normalizedArg = shortPrefix + Option::Normalize(rest);
-          }
-        }
-        *errStream << "Missing value for " << normalizedArg << std::endl;
+      // Reject missing values, and do not swallow the next argument as a value
+      // when it looks like another option (e.g. "--port --verbose"). A lone
+      // "-" (stdin convention) or a negative number is a valid value.
+      if (i + 1 >= argc || LooksLikeOption(argv[i + 1])) {
+        *errStream << "Missing value for " << NormalizeArgName(arg) << std::endl;
         return ParseResult::Failed;
       }
 
@@ -874,15 +1025,7 @@ private:
         return ParseResult::Failed;
       }
 
-      // For COMMA_LIST options, split and store each value separately
-      if (opt->HasFeature(Option::FEAT_COMMA_LIST)) {
-        std::vector<std::string> values = SplitCommaList(value);
-        for (const auto &singleValue : values) {
-          parsedArgs[opt->id].push_back(singleValue);
-        }
-      } else {
-        parsedArgs[opt->id].push_back(value);
-      }
+      StoreValue(opt, value);
 
       return ParseResult::Success;
     }
@@ -923,18 +1066,8 @@ private:
     if (opt && opt->HasFeature(Option::FEAT_EQ_JOIN)) {
       // Check if value is empty (e.g., --option=)
       if (value.empty()) {
-        // Normalize the argument name for consistent error messages
-        std::string normalizedArg = arg.substr(0, eqPos);
-        if (normalizedArg.find("--") == 0) {
-          normalizedArg = "--" + Option::Normalize(normalizedArg.substr(2));
-        } else if (normalizedArg.find("-") == 0 && normalizedArg.size() > 1) {
-          std::string shortPrefix = normalizedArg.substr(0, 1);
-          std::string rest = normalizedArg.substr(1);
-          if (rest.find('-') != std::string::npos || rest.length() > 2) {
-            normalizedArg = shortPrefix + Option::Normalize(rest);
-          }
-        }
-        *errStream << "Missing value for " << normalizedArg << std::endl;
+        *errStream << "Missing value for " << NormalizeArgName(arg.substr(0, eqPos))
+                   << std::endl;
         return ParseResult::Failed;
       }
 
@@ -942,15 +1075,7 @@ private:
         return ParseResult::Failed;
       }
 
-      // For COMMA_LIST options, split and store each value separately
-      if (opt->HasFeature(Option::FEAT_COMMA_LIST)) {
-        std::vector<std::string> values = SplitCommaList(value);
-        for (const auto &singleValue : values) {
-          parsedArgs[opt->id].push_back(singleValue);
-        }
-      } else {
-        parsedArgs[opt->id].push_back(value);
-      }
+      StoreValue(opt, value);
 
       return ParseResult::Success;
     }
@@ -976,113 +1101,117 @@ private:
           return ParseResult::Failed;
         }
 
-        parsedArgs[opt->id].push_back(value);
+        StoreValue(opt, value);
         return ParseResult::Success;
       }
     }
 
     // Try long option format: --librarycuda, --helpme, etc.
+    // When several JOINED options could match, the longest matching prefix
+    // wins (e.g. --log_lvlhigh matches log_lvl, not log). An exact match of a
+    // JOINED option name without a value is reported as a missing value.
     if (arg.size() > 3 && arg.find("--") == 0) {
-      // Search for JOINED options that match the prefix
+      const Option *bestOpt = nullptr;
+      std::string bestValue;
+      size_t bestLen = 0;
+
       for (const auto &option : optionTable) {
-        if (option.HasFeature(Option::FEAT_JOINED)) {
-          std::string expectedPrefix = "--" + option.longName;
-          if (arg.find(expectedPrefix) == 0 &&
-              arg.size() > expectedPrefix.size()) {
-            std::string value = arg.substr(expectedPrefix.size());
+        if (!option.HasFeature(Option::FEAT_JOINED)) {
+          continue;
+        }
 
-            if (!CheckOptionValue(&option, value)) {
-              return ParseResult::Failed;
-            }
+        std::string prefix = "--" + option.longName;
+        if (arg == prefix) {
+          *errStream << "Missing value for --"
+                     << Option::Normalize(option.longName) << std::endl;
+          return ParseResult::Failed;
+        }
+        if (arg.size() > prefix.size() &&
+            arg.compare(0, prefix.size(), prefix) == 0 &&
+            prefix.size() > bestLen) {
+          bestLen = prefix.size();
+          bestOpt = &option;
+          bestValue = arg.substr(prefix.size());
+        }
 
-            parsedArgs[option.id].push_back(value);
-            return ParseResult::Success;
-          }
-
-          // Also try with normalized name
-          std::string normalizedPrefix =
-              "--" + Option::Normalize(option.longName);
-          if (arg.find(normalizedPrefix) == 0 &&
-              arg.size() > normalizedPrefix.size()) {
-            std::string value = arg.substr(normalizedPrefix.size());
-
-            if (!CheckOptionValue(&option, value)) {
-              return ParseResult::Failed;
-            }
-
-            parsedArgs[option.id].push_back(value);
-            return ParseResult::Success;
-          }
-
-          // Check if argument matches exactly but without value (missing value
-          // case)
-          if (arg == expectedPrefix || arg == normalizedPrefix) {
-            // Found a JOINED option without a value - report error
+        std::string normalizedPrefix = "--" + Option::Normalize(option.longName);
+        if (normalizedPrefix != prefix) {
+          if (arg == normalizedPrefix) {
             *errStream << "Missing value for --"
                        << Option::Normalize(option.longName) << std::endl;
             return ParseResult::Failed;
           }
+          if (arg.size() > normalizedPrefix.size() &&
+              arg.compare(0, normalizedPrefix.size(), normalizedPrefix) == 0 &&
+              normalizedPrefix.size() > bestLen) {
+            bestLen = normalizedPrefix.size();
+            bestOpt = &option;
+            bestValue = arg.substr(normalizedPrefix.size());
+          }
         }
       }
 
-      // Try alias names for JOINED options
+      if (bestOpt) {
+        if (!CheckOptionValue(bestOpt, bestValue)) {
+          return ParseResult::Failed;
+        }
+
+        StoreValue(bestOpt, bestValue);
+        return ParseResult::Success;
+      }
+
+      // Try alias names for JOINED options (longest prefix wins)
       if (!aliasTable.empty()) {
+        const Option *bestAliasOpt = nullptr;
+        std::string bestAliasValue;
+        size_t bestAliasLen = 0;
+
         for (const auto &alias : aliasTable) {
-          std::string normOptionName = Option::Normalize(alias.optionName);
-          const Option *targetOpt = nullptr;
-          for (const auto &opt : optionTable) {
-            if (Option::Normalize(opt.longName) == normOptionName ||
-                opt.shortName == normOptionName) {
-              targetOpt = &opt;
-              break;
-            }
+          const Option *targetOpt = FindOptionByName(alias.optionName);
+          if (!targetOpt || !targetOpt->HasFeature(Option::FEAT_JOINED)) {
+            continue;
           }
 
-          if (targetOpt && targetOpt->HasFeature(Option::FEAT_JOINED)) {
-            // Try long alias
-            std::string expectedPrefix = "--" + alias.aliasName;
-            if (arg.find(expectedPrefix) == 0 &&
-                arg.size() > expectedPrefix.size()) {
-              std::string value = arg.substr(expectedPrefix.size());
-
-              if (!CheckOptionValue(targetOpt, value)) {
-                return ParseResult::Failed;
-              }
-
-              parsedArgs[targetOpt->id].push_back(value);
-              return ParseResult::Success;
-            }
-
-            // Try short alias
-            if (!alias.shortAliasName.empty()) {
-              std::string shortPrefix = "-" + alias.shortAliasName;
-              if (arg.find(shortPrefix) == 0 &&
-                  arg.size() > shortPrefix.size()) {
-                std::string value = arg.substr(shortPrefix.size());
-
-                if (!CheckOptionValue(targetOpt, value)) {
-                  return ParseResult::Failed;
-                }
-
-                parsedArgs[targetOpt->id].push_back(value);
-                return ParseResult::Success;
-              }
-
-              // Check if short alias is used without value
-              if (arg == shortPrefix) {
-                *errStream << "Missing value for -" << alias.shortAliasName
-                           << std::endl;
-                return ParseResult::Failed;
-              }
-            }
-
-            // Check if long alias is used without value
-            if (arg == expectedPrefix) {
+          if (!alias.aliasName.empty()) {
+            std::string longPrefix = "--" + alias.aliasName;
+            if (arg == longPrefix) {
               *errStream << "Missing value for --"
                          << Option::Normalize(alias.aliasName) << std::endl;
               return ParseResult::Failed;
             }
+            if (arg.size() > longPrefix.size() &&
+                arg.compare(0, longPrefix.size(), longPrefix) == 0 &&
+                longPrefix.size() > bestAliasLen) {
+              bestAliasLen = longPrefix.size();
+              bestAliasOpt = targetOpt;
+              bestAliasValue = arg.substr(longPrefix.size());
+            }
           }
+
+          if (!alias.shortAliasName.empty()) {
+            std::string shortPrefix = "-" + alias.shortAliasName;
+            if (arg == shortPrefix) {
+              *errStream << "Missing value for -" << alias.shortAliasName
+                         << std::endl;
+              return ParseResult::Failed;
+            }
+            if (arg.size() > shortPrefix.size() &&
+                arg.compare(0, shortPrefix.size(), shortPrefix) == 0 &&
+                shortPrefix.size() > bestAliasLen) {
+              bestAliasLen = shortPrefix.size();
+              bestAliasOpt = targetOpt;
+              bestAliasValue = arg.substr(shortPrefix.size());
+            }
+          }
+        }
+
+        if (bestAliasOpt) {
+          if (!CheckOptionValue(bestAliasOpt, bestAliasValue)) {
+            return ParseResult::Failed;
+          }
+
+          StoreValue(bestAliasOpt, bestAliasValue);
+          return ParseResult::Success;
         }
       }
     }
@@ -1146,6 +1275,10 @@ private:
   AliasTable aliasTable; // Alias table for option name aliases (for
                          // help/introspection)
   AliasMap aliasMap;     // Alias lookup map for O(log n) runtime lookup
+  std::map<std::string, int>
+      optionLookupMap; // Pre-normalized name -> optionTable index
+  std::map<std::string, int>
+      aliasLookupMap; // Pre-normalized alias name -> optionTable index
   std::map<int, std::vector<std::string>>
       parsedArgs;                  // Support multiple values per option
   std::vector<std::string> inputs; // Positional inputs (non-option arguments)
@@ -1157,20 +1290,41 @@ private:
 /**
  * @brief X-Macros for unified argument definition.
  *
+ * Recommended usage: define all options in a dedicated header (e.g.
+ * options.h), then include cpp_args_macro_cleaner.inc at the end of that
+ * header. The cleaner #undefs the library macros, so the short names below
+ * (SEPARATE, FLAG, ...) never leak into the rest of the program. Keeping the
+ * option definitions in their own header is what makes these short, readable
+ * macro names safe.
+ *
  * Usage format:
  * - For separate options: F(name, short_name, help_text, SEPARATE,
- * {allowed_values}) Supports space-separated (-o value) and equals-separated
- * (-o=value) formats
- * - For flags: F(name, short_name, help_text, FLAG, {}) - no value required
+ * {allowed_values}) Supports space-separated format (-o value). Add
+ * EQ_JOIN to also accept equals-separated format (-o=value).
+ * - For flags: F(name, short_name, help_text, FLAG, {}) - no value
+ * required
  * - For joined options: F(name, short_name, help_text, JOINED,
  * {allowed_values}) Value attached directly (-lcuda, --librarycuda)
- * - For both separate and joined: F(name, short_name, help_text, SEPARATE |
- * JOINED, {allowed_values}) Supports all formats: space, equals, and direct
- * attachment
- * - For comma-separated lists: F(name, short_name, help_text, SEPARATE |
- * COMMA_LIST, {allowed_values}) Accepts comma-separated values (--option=a,b,c)
- *   which are split and stored as multiple values. Each value is validated
- *   against the allowed set individually.
+ * - For both separate and joined: F(name, short_name, help_text,
+ * SEPARATE | JOINED, {allowed_values}) Supports space and
+ * direct attachment formats; add EQ_JOIN to also support equals format
+ * - For comma-separated lists: F(name, short_name, help_text, SEPARATE
+ * | COMMA_LIST | EQ_JOIN, {allowed_values}) Accepts
+ * comma-separated values (--option=a,b,c) which are split and stored as
+ * multiple values. Each value is validated against the allowed set
+ * individually. Empty fields (e.g. "--option=a,") are rejected. Note: the "="
+ * syntax requires EQ_JOIN; without it only the space-separated form is
+ * accepted.
+ *
+ * Limitations:
+ * - Combined short flags (e.g. -vd) are not supported; each short flag must be
+ *   given separately (-v -d).
+ * - A token that starts with '-' is always treated as an option, so a negative
+ *   number as a positional input (e.g. "prog -5") is rejected. Use "--" to
+ *   pass such tokens as inputs (e.g. "prog -- -5"). Negative numbers remain
+ *   valid as option values (e.g. "--port -1").
+ * - Parse() appends results to the current state; call Reset() before parsing
+ *   again with the same parser.
  */
 
 // Kind identifiers for macro usage (using bit flags)
@@ -1183,17 +1337,18 @@ private:
 #define EQ_JOIN cppargs::Option::FEAT_EQ_JOIN
 #define COMMA_LIST cppargs::Option::FEAT_COMMA_LIST
 
-// GENERATE_ENUM takes kind and optional allowed values (ignored for enum
-// generation)
+// GENERATE_ENUM takes kind and optional allowed values (ignored for
+// enum generation)
 #define GENERATE_ENUM(name, sh, help, kind, ...) OPT_##name,
 
 // GENERATE_TABLE uses kind and allowed values
 // Parameters for DEFINE_ARGS: name, sh, help, kind, allowed_values...
-// This is used by DEFINE_ARGS for non-grouped options (default groupId = -1)
+// This is used by DEFINE_ARGS for non-grouped options (default
+// groupId = -1)
 #define MAKE_ALLOWED(...) __VA_ARGS__
 
-#define GENERATE_TABLE(name, sh, help, kind, ...)                              \
-  cppargs::Option{(int)OPT_##name,           #name, #sh, help,                 \
+#define GENERATE_TABLE(name, sh, help, kind, ...)                       \
+  cppargs::Option{(int)OPT_##name,           #name, #sh, help,                  \
                   MAKE_ALLOWED(__VA_ARGS__), kind,  -1},
 
 /**
@@ -1208,19 +1363,20 @@ private:
  * Usage examples:
  *
  *    #define ARGS(F)                                                          \
- *       F(port, p, "Server port", OPTION, {})                                 \
- *       F(verbose, v, "Enable verbose", FLAG, {})                             \
- *       F(log_lvl, l, "Log level", OPTION, {"debug", "info"})                 \
- *       F(help, h, "Print help", FLAG, {})                                    \
+ *       F(port, p, "Server port", SEPARATE, {})                        \
+ *       F(verbose, v, "Enable verbose", FLAG, {})                      \
+ *       F(log_lvl, l, "Log level", SEPARATE, {"debug", "info"})        \
+ *       F(help, h, "Print help", FLAG, {})                             \
  *    DEFINE_ARGS(App, AppTable, ARGS)
  *
  */
-#define DEFINE_ARGS(EnumName, TableName, ArgsMacro)                            \
-  enum EnumName { ArgsMacro(GENERATE_ENUM) EnumName##_COUNT };                 \
-  const cppargs::Option InitList_##TableName[] = {ArgsMacro(GENERATE_TABLE)};  \
-  static const cppargs::OptionTable TableName(                                 \
-      InitList_##TableName,                                                    \
-      InitList_##TableName +                                                   \
+#define DEFINE_ARGS(EnumName, TableName, ArgsMacro)                     \
+  enum EnumName { ArgsMacro(GENERATE_ENUM) EnumName##_COUNT };          \
+  const cppargs::Option InitList_##TableName[] = {                              \
+      ArgsMacro(GENERATE_TABLE)};                                       \
+  static const cppargs::OptionTable TableName(                                  \
+      InitList_##TableName,                                                     \
+      InitList_##TableName +                                                    \
           sizeof(InitList_##TableName) / sizeof(InitList_##TableName[0]));
 
 /**
@@ -1244,16 +1400,16 @@ private:
 
 // Generate alias table entries - directly stringify all parameters
 // Empty parameters will become empty strings automatically
-#define GENERATE_ALIAS_ENTRY(alias, short_alias, option)                       \
+#define GENERATE_ALIAS_ENTRY(alias, short_alias, option)                \
   cppargs::AliasEntry{#alias, #short_alias, #option},
 
-#define DEFINE_ALIAS(AliasTableName, AliasMacro)                               \
-  enum { AliasMacro(GENERATE_ALIAS_ENUM) ALIAS_COUNT };                        \
-  const cppargs::AliasEntry InitList_##AliasTableName[] = {                    \
-      AliasMacro(GENERATE_ALIAS_ENTRY)};                                       \
-  static const cppargs::AliasTable AliasTableName(                             \
-      InitList_##AliasTableName,                                               \
-      InitList_##AliasTableName + sizeof(InitList_##AliasTableName) /          \
+#define DEFINE_ALIAS(AliasTableName, AliasMacro)                        \
+  enum { AliasMacro(GENERATE_ALIAS_ENUM) ALIAS_COUNT };                 \
+  const cppargs::AliasEntry InitList_##AliasTableName[] = {                     \
+      AliasMacro(GENERATE_ALIAS_ENTRY)};                                \
+  static const cppargs::AliasTable AliasTableName(                              \
+      InitList_##AliasTableName,                                                \
+      InitList_##AliasTableName + sizeof(InitList_##AliasTableName) /           \
                                       sizeof(InitList_##AliasTableName[0]));
 
 /**
@@ -1273,41 +1429,42 @@ private:
  *       F(Default, "") // Empty name means ungrouped
  *
  *    #define ARGS(F)                                                          \
- *       F(Frontend, host, H, "Host", OPTION, {})                              \
- *       F(Frontend, port, p, "Port", OPTION, {})                              \
- *       F(Backend, db, d, "Database", OPTION, {})                             \
- *       F(Default, verbose, v, "Verbose", FLAG, {})                           \
+ *       F(Frontend, host, H, "Host", SEPARATE, {})                     \
+ *       F(Frontend, port, p, "Port", SEPARATE, {})                     \
+ *       F(Backend, db, d, "Database", SEPARATE, {})                    \
+ *       F(Default, verbose, v, "Verbose", FLAG, {})                    \
  *
  *    DEFINE_ARGS_WITH_GROUP(App, AppGroup, AppTable, ARGS, GROUPS)
  */
-#define GENERATE_ENUM_WITH_GROUP(group, name, sh, help, kind, ...) OPT_##name,
+#define GENERATE_ENUM_WITH_GROUP(group, name, sh, help, kind, ...)      \
+  OPT_##name,
 
-#define GENERATE_TABLE_WITH_GROUP(group, name, sh, help, kind, ...)            \
-  cppargs::Option{(int)OPT_##name, #name, #sh,        help,                    \
+#define GENERATE_TABLE_WITH_GROUP(group, name, sh, help, kind, ...)     \
+  cppargs::Option{(int)OPT_##name, #name, #sh,        help,                     \
                   __VA_ARGS__,     kind,  GRP_##group},
 
 #define GENERATE_GROUP_ENUM(name, display) GRP_##name,
 #define GENERATE_GROUP_INFO(name, display) {GRP_##name, display},
 
-#define DEFINE_ARGS_WITH_GROUP(ArgEnumName, GroupEnumName, TableName,          \
-                               ArgsMacro, GroupsMacro)                         \
-  enum GroupEnumName {                                                         \
-    GroupsMacro(GENERATE_GROUP_ENUM) GroupEnumName##_COUNT                     \
-  };                                                                           \
-  enum ArgEnumName {                                                           \
-    ArgsMacro(GENERATE_ENUM_WITH_GROUP) ArgEnumName##_COUNT                    \
-  };                                                                           \
-  const cppargs::Option InitList_##TableName[] = {                             \
-      ArgsMacro(GENERATE_TABLE_WITH_GROUP)};                                   \
-  static const cppargs::OptionTable TableName(                                 \
-      InitList_##TableName,                                                    \
-      InitList_##TableName +                                                   \
-          sizeof(InitList_##TableName) / sizeof(InitList_##TableName[0]));     \
-  const cppargs::OptionGroup GroupList_##TableName[] = {                       \
-      GroupsMacro(GENERATE_GROUP_INFO)};                                       \
-  static const cppargs::OptionGroupTable TableName##Groups(                    \
-      GroupList_##TableName,                                                   \
-      GroupList_##TableName +                                                  \
+#define DEFINE_ARGS_WITH_GROUP(ArgEnumName, GroupEnumName, TableName,   \
+                                       ArgsMacro, GroupsMacro)                  \
+  enum GroupEnumName {                                                          \
+    GroupsMacro(GENERATE_GROUP_ENUM) GroupEnumName##_COUNT              \
+  };                                                                            \
+  enum ArgEnumName {                                                            \
+    ArgsMacro(GENERATE_ENUM_WITH_GROUP) ArgEnumName##_COUNT             \
+  };                                                                            \
+  const cppargs::Option InitList_##TableName[] = {                              \
+      ArgsMacro(GENERATE_TABLE_WITH_GROUP)};                            \
+  static const cppargs::OptionTable TableName(                                  \
+      InitList_##TableName,                                                     \
+      InitList_##TableName +                                                    \
+          sizeof(InitList_##TableName) / sizeof(InitList_##TableName[0]));      \
+  const cppargs::OptionGroup GroupList_##TableName[] = {                        \
+      GroupsMacro(GENERATE_GROUP_INFO)};                                \
+  static const cppargs::OptionGroupTable TableName##Groups(                     \
+      GroupList_##TableName,                                                    \
+      GroupList_##TableName +                                                   \
           sizeof(GroupList_##TableName) / sizeof(GroupList_##TableName[0]));
 
 } // namespace cppargs

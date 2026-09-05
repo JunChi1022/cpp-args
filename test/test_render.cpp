@@ -6,14 +6,6 @@
 
 using namespace cppargs;
 
-#define TEST(name) void name()
-#define RUN_TEST(name)                                                       \
-  do {                                                                       \
-    std::cout << "Running " << #name << "... ";                              \
-    name();                                                                  \
-    std::cout << "PASSED" << std::endl;                                      \
-  } while (0)
-
 // Test Render with SEPARATE options
 TEST(TestRender_SeparateOptions) {
   #define ARGS(F)                                                            \
